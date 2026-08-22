@@ -1,6 +1,8 @@
 import asyncio
 import logging
 
+from aiohttp import web
+
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -8,6 +10,24 @@ from aiogram.enums import ParseMode
 from bot.config import load_config
 from bot.database import init_db
 from bot.handlers import admin, common, user
+
+
+async def handle_ping(request: web.Request) -> web.Response:
+    """Отвечает на любой GET-запрос. Нужен для двух вещей:
+    1) Render считает Web Service живым, только если он слушает порт;
+    2) внешний будильник (например, cron-job.org) стучится сюда каждые
+       несколько минут, чтобы Render не усыпил сервис из-за простоя."""
+    return web.Response(text="Bot is running")
+
+
+async def start_web_server(port: int) -> None:
+    app = web.Application()
+    app.router.add_get("/", handle_ping)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, host="0.0.0.0", port=port)
+    await site.start()
+    logging.info("Веб-сервер для будильника запущен на порту %s", port)
 
 
 async def main() -> None:
@@ -33,7 +53,11 @@ async def main() -> None:
 
     await bot.delete_webhook(drop_pending_updates=True)
     logging.info("Бот запущен, начинаю polling...")
-    await dp.start_polling(bot, admin_group_id=config.admin_group_id)
+
+    await asyncio.gather(
+        dp.start_polling(bot, admin_group_id=config.admin_group_id),
+        start_web_server(config.port),
+    )
 
 
 if __name__ == "__main__":
