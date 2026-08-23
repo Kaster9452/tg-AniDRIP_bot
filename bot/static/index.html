@@ -189,6 +189,11 @@ body{
 .photo-modal-close:focus-visible{outline:2px solid var(--bone);outline-offset:2px}
 .photo-modal-img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
 .photo-modal-caption{margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--mist);text-align:center}
+.preview-modal{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:60;display:flex;align-items:center;justify-content:center;padding:18px;animation:fadeIn .18s ease}
+.preview-modal[hidden]{display:none}
+.preview-box{width:100%;max-width:480px;background:var(--ink);border:1px solid var(--haze);border-radius:18px;padding:14px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.preview-head{display:flex;align-items:center;gap:9px;margin-bottom:13px}.preview-title{font-family:'Unbounded',sans-serif;font-size:14px;font-weight:600}.preview-close{margin-left:auto;width:34px;height:34px;border:1px solid var(--haze);border-radius:10px;background:var(--slate);color:var(--bone);font-size:20px;cursor:pointer}.preview-close:hover{border-color:var(--rose);color:var(--rose)}
+.preview-post{overflow:hidden;border:1px solid #263748;border-radius:14px;background:#0b1724}.telegram-chat{min-height:260px;padding:24px 12px 18px;display:flex;align-items:flex-end;background:#0b1724;background-image:radial-gradient(rgba(126,161,184,.08) 1px,transparent 1px),radial-gradient(rgba(0,0,0,.12) 1px,transparent 1px);background-position:0 0,13px 13px;background-size:26px 26px}.telegram-bubble{position:relative;max-width:94%;padding:9px 10px 6px;border-radius:16px 16px 16px 3px;background:#182939;color:#f1f4f6;box-shadow:0 1px 1px rgba(0,0,0,.24)}.telegram-bubble::after{content:"";position:absolute;left:-7px;bottom:0;border-right:9px solid #182939;border-top:8px solid transparent}.telegram-text{font-size:14px;line-height:1.45;word-break:break-word}.telegram-media{height:96px;margin:-2px -4px 8px;border-radius:10px;background:linear-gradient(140deg,#31506a,#1b3547);color:#dce8ee;display:flex;align-items:flex-end;padding:7px;font-size:10px}.telegram-meta{float:right;margin:4px 0 0 10px;color:#7892a4;font-size:10px}.preview-note{font-size:10px;color:var(--mist);margin-top:11px;text-align:center}
 
 .actions{display:flex;gap:7px;margin-top:12px}
 .btn{flex:1;border:0;cursor:pointer;border-radius:11px;padding:11px 6px;
@@ -466,6 +471,14 @@ body{
   <div id="photoModalCaption" class="photo-modal-caption"></div>
 </div>
 
+<div id="previewModal" class="preview-modal" hidden aria-label="Предпросмотр поста">
+  <div class="preview-box" role="dialog" aria-modal="true" aria-labelledby="previewTitle">
+    <div class="preview-head"><div class="preview-title" id="previewTitle">Предпросмотр</div><button class="preview-close" id="closePreview" title="Закрыть">×</button></div>
+    <div class="preview-post" id="previewPost"></div>
+    <div class="preview-note">Публикация ещё не выполнена</div>
+  </div>
+</div>
+
 <script>
 const tg = window.Telegram?.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
@@ -557,6 +570,7 @@ function renderInbox() {
         <button class="btn btn-later" data-open="lat-${p.id}">Отложить</button>
       </div>
       <div class="actions actions-sub">
+        <button class="btn btn-ghost" data-preview="${p.id}">Предпросмотр</button>
         <button class="btn btn-ghost" data-reject="${p.id}">Отклонить</button>
       </div>
       <div class="step" id="pub-${p.id}">
@@ -844,6 +858,11 @@ async function act(path, body, okText, after) {
 document.addEventListener('click', (e) => {
   const t = e.target.closest('button');
   if (!t) return;
+
+  if (t.dataset.preview) {
+    openPreview(+t.dataset.preview);
+    return;
+  }
 
   if (t.dataset.open) {
     const target = document.getElementById(t.dataset.open);
@@ -1160,6 +1179,33 @@ function closePhotoModal() {
   setTimeout(() => { $('photoModalImg').src = ''; }, 180);
   currentPhotoId = null;
 }
+
+function openPreview(postId) {
+  const post = state.inbox.find(p => p.id === postId);
+  if (!post) return;
+  const media = post.hasPhoto || post.media
+    ? `<div class="telegram-media">${esc(post.hasPhoto ? 'фото' : post.media)}</div>`
+    : '';
+  $('previewPost').innerHTML = `
+    <div class="telegram-chat">
+      <div class="telegram-bubble">
+        ${media}
+        ${post.preview ? `<div class="telegram-text">${esc(post.preview)}</div>` : '<div class="telegram-text">без текста</div>'}
+        <span class="telegram-meta">20:00 ✓✓</span>
+      </div>
+    </div>`;
+  $('previewModal').hidden = false;
+}
+
+function closePreview() {
+  $('previewModal').hidden = true;
+  $('previewPost').innerHTML = '';
+}
+
+$('closePreview').addEventListener('click', closePreview);
+$('previewModal').addEventListener('click', (e) => {
+  if (e.target === $('previewModal')) closePreview();
+});
 
 $('closePhotoModal').addEventListener('click', closePhotoModal);
 
