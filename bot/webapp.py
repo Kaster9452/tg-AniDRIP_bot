@@ -138,6 +138,7 @@ def serialize(post, tz: ZoneInfo, now_local: datetime) -> dict:
         "hasPhoto": post["content_type"] == "photo" and bool(post["file_id"]),
         "hasMedia": bool(post["file_id"]),
         "mediaType": post["content_type"],
+        "hasMediaThumb": bool(post["media_thumb_id"]),
         "ago": relative_ago(created, now_local),
         "submittedTime": created.strftime("%H:%M"),
         "submittedDay": day_label(created, now_local),
@@ -409,6 +410,25 @@ async def handle_media(request: web.Request) -> web.Response:
     encoded = base64.b64encode(buffer.read()).decode("ascii")
     mime = MEDIA_MIME_TYPES.get(post["content_type"], "application/octet-stream")
     return web.json_response({"ok": True, "dataUrl": f"data:{mime};base64,{encoded}"})
+
+
+async def handle_media_thumb(request: web.Request) -> web.Response:
+    """Отдаёт миниатюру медиа для быстрого предпросмотра."""
+    payload = await read_payload(request)
+    await authorize(request, payload)
+    post = await load_post(post_id_from(payload))
+    thumb_id = post["media_thumb_id"]
+    if not thumb_id:
+        raise ApiError("У этого медиа нет миниатюры", status=404)
+    bot: Bot = request.app["bot"]
+    try:
+        file = await bot.get_file(thumb_id)
+        buffer = await bot.download_file(file.file_path)
+    except Exception as exc:
+        logger.exception("Не удалось скачать миниатюру поста %s", post["id"])
+        raise ApiError("Не удалось загрузить миниатюру", status=502) from exc
+    encoded = base64.b64encode(buffer.read()).decode("ascii")
+    return web.json_response({"ok": True, "dataUrl": f"data:image/jpeg;base64,{encoded}"})
 
 
 # Аватарки меняются редко, а на каждый запрос панели их десятки — поэтому
@@ -693,6 +713,7 @@ def build_app(bot: Bot, config: Config) -> web.Application:
     app.router.add_post("/api/state", handle_state)
     app.router.add_post("/api/photo", handle_photo)
     app.router.add_post("/api/media", handle_media)
+    app.router.add_post("/api/media-thumb", handle_media_thumb)
     app.router.add_post("/api/avatars", handle_avatars)
     app.router.add_post("/api/slots", handle_slots)
     app.router.add_post("/api/own", handle_own)

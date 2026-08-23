@@ -54,6 +54,8 @@ async def forward_to_admins(message: Message, bot: Bot, admin_group_id: int) -> 
     # Сохраняем ID медиа, чтобы панель могла показать настоящий файл.
     media = message.photo[-1] if message.photo else getattr(message, content_type, None)
     file_id = getattr(media, "file_id", None)
+    thumbnail = getattr(media, "thumbnail", None) or getattr(media, "thumb", None)
+    media_thumb_id = getattr(thumbnail, "file_id", None)
 
     post_id = await db.create_post(
         user_id=user.id,
@@ -63,6 +65,7 @@ async def forward_to_admins(message: Message, bot: Bot, admin_group_id: int) -> 
         content_type=content_type,
         content_html=content_html,
         file_id=file_id,
+        media_thumb_id=media_thumb_id,
     )
 
     header = build_header(message, post_id)

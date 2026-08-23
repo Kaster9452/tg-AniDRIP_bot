@@ -490,6 +490,7 @@ let state = { inbox: [], queue: [], log: [], stats: {}, people: [] };
 let busy = false;
 const photoCache = {}; // postId -> data:image/... — грузим фото один раз и кэшируем
 const mediaCache = {}; // postId -> data URL для предпросмотра любого медиа
+const mediaThumbCache = {}; // postId -> быстрая миниатюра медиа
 const avatarCache = {}; // userId -> data:image/... либо null, если аватарки нет
 
 /* ── экранирование: содержимое постов приходит от пользователей ── */
@@ -1197,6 +1198,16 @@ async function openPreview(postId) {
       </div>
     </div>`;
   $('previewModal').hidden = false;
+  if (post.hasMediaThumb && !mediaThumbCache[postId]) {
+    try {
+      const thumb = await api('media-thumb', { postId });
+      mediaThumbCache[postId] = thumb.dataUrl;
+      const mediaEl = $('previewPost').querySelector('.telegram-media');
+      if (mediaEl) mediaEl.innerHTML = `<img src="${mediaThumbCache[postId]}" alt="${esc(post.media || 'медиа')}">`;
+    } catch (_) {
+      // Оставляем тип медиа, если миниатюру не удалось получить.
+    }
+  }
   if (post.hasMedia && !mediaCache[postId]) {
     try {
       const data = await api('media', { postId });

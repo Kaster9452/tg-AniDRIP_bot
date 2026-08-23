@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS posts (
     content_type       TEXT NOT NULL,
     content_html       TEXT,
     file_id            TEXT,
+    media_thumb_id     TEXT,
     admin_chat_id      BIGINT,
     admin_message_id   BIGINT,
     status             TEXT NOT NULL DEFAULT 'pending',
@@ -45,6 +46,7 @@ CREATE INDEX IF NOT EXISTS idx_posts_due ON posts (status, scheduled_at);
 -- ALTER вместо переделки CREATE TABLE: таблица posts уже существует в базе
 -- на Render, а CREATE TABLE IF NOT EXISTS новую колонку в неё не добавит.
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS file_id TEXT;
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_thumb_id TEXT;
 
 -- Пост, написанный самим админом в панели, а не присланный пользователем.
 -- Нужно, чтобы такие посты не попадали в список «Люди» и были подписаны иначе.
@@ -142,14 +144,16 @@ async def create_post(
     content_type: str,
     content_html: str | None,
     file_id: str | None = None,
+    media_thumb_id: str | None = None,
 ) -> int:
     pool = _require_pool()
     async with pool.acquire() as conn:
         return await conn.fetchval(
             """
             INSERT INTO posts (user_id, user_message_id, author_name,
-                               author_username, content_type, content_html, file_id)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+                               author_username, content_type, content_html, file_id,
+                               media_thumb_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING id
             """,
             user_id,
@@ -159,6 +163,7 @@ async def create_post(
             content_type,
             content_html,
             file_id,
+            media_thumb_id,
         )
 
 
