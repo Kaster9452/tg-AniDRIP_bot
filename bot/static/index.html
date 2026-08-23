@@ -1207,7 +1207,17 @@ async function openPreview(postId) {
         ? `<video src="${mediaCache[postId]}" controls></video>`
         : `<img src="${mediaCache[postId]}" alt="${esc(post.media || 'медиа')}">`;
     } catch (_) {
-      // Название типа медиа остаётся, если Telegram временно недоступен.
+      // Для фото используем старый проверенный endpoint как запасной путь.
+      if (post.mediaType === 'photo') {
+        try {
+          const data = await api('photo', { postId });
+          mediaCache[postId] = data.dataUrl;
+          const mediaEl = $('previewPost').querySelector('.telegram-media');
+          if (mediaEl) mediaEl.innerHTML = `<img src="${mediaCache[postId]}" alt="Фото">`;
+        } catch (_) {
+          // Название типа медиа остаётся, если Telegram временно недоступен.
+        }
+      }
     }
   }
 }
