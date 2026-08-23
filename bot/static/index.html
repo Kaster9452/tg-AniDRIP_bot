@@ -75,8 +75,8 @@ body{
 
 /* ── экран «Свой пост» ── */
 /* сетка слотов внутри карточки — компактнее, чем на отдельном экране */
-.step .days{margin-bottom:8px}
-.step .day{padding:7px 3px;font-size:11px;border-radius:11px}
+.step .days{margin-bottom:8px;padding:3px}
+.step .day{padding:6px 3px;font-size:11px;border-radius:9px}
 .step .grid{gap:6px}
 .step .slot{padding:8px 8px 7px;border-radius:12px}
 .step .slot-time{font-size:13px}
@@ -97,14 +97,18 @@ body{
 .count{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--mist)}
 .count.over{color:var(--rose)}
 
-.days{display:flex;gap:7px;margin-bottom:13px}
-.day{flex:1;cursor:pointer;background:var(--slate);border:1px solid var(--haze);color:var(--mist);
-  border-radius:13px;padding:9px 4px;font-family:'Manrope',sans-serif;font-weight:600;font-size:12px;
-  display:grid;gap:2px;justify-items:center;transition:border-color .18s ease,color .18s ease}
-.day small{font-family:'JetBrains Mono',monospace;font-size:9px;opacity:.75}
-.day:hover{border-color:var(--mist);color:var(--bone)}
-.day:focus-visible{outline:2px solid var(--rose);outline-offset:2px}
-.day[aria-pressed="true"]{border-color:var(--rose);color:var(--bone);background:#241C2C}
+/* Переключатель дня — цельная планка, а не три отдельные плитки:
+   иначе он сливается с сеткой слотов, где плитки такие же. */
+.days{display:flex;gap:4px;margin-bottom:13px;padding:4px;
+  background:var(--haze);border-radius:14px}
+.day{flex:1;cursor:pointer;background:transparent;border:0;color:var(--mist);
+  border-radius:10px;padding:8px 4px;font-family:'Manrope',sans-serif;font-weight:600;font-size:12px;
+  display:grid;gap:2px;justify-items:center;transition:background .18s ease,color .18s ease}
+.day small{font-family:'JetBrains Mono',monospace;font-size:9px;opacity:.7}
+.day:hover{color:var(--bone)}
+.day:focus-visible{outline:2px solid var(--rose);outline-offset:-2px}
+.day[aria-pressed="true"]{background:var(--rose);color:#1A0A12}
+.day[aria-pressed="true"] small{opacity:.8}
 
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .slot{position:relative;cursor:pointer;text-align:left;
