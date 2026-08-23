@@ -196,6 +196,7 @@ body{
 .preview-post{overflow:hidden;border:1px solid #263748;border-radius:14px;background:#0b1724}.telegram-chat{min-height:260px;padding:24px 12px 18px;display:flex;align-items:flex-end;background:#0b1724;background-image:radial-gradient(rgba(126,161,184,.08) 1px,transparent 1px),radial-gradient(rgba(0,0,0,.12) 1px,transparent 1px);background-position:0 0,13px 13px;background-size:26px 26px}.telegram-bubble{position:relative;max-width:94%;padding:9px 10px 6px;border-radius:16px 16px 16px 3px;background:#182939;color:#f1f4f6;box-shadow:0 1px 1px rgba(0,0,0,.24)}.telegram-bubble::after{content:"";position:absolute;left:-7px;bottom:0;border-right:9px solid #182939;border-top:8px solid transparent}.telegram-text{font-size:14px;line-height:1.45;word-break:break-word}.telegram-media{height:96px;margin:-2px -4px 8px;border-radius:10px;background:linear-gradient(140deg,#31506a,#1b3547);color:#dce8ee;display:flex;align-items:flex-end;padding:7px;font-size:10px}.telegram-meta{float:right;margin:4px 0 0 10px;color:#7892a4;font-size:10px}.preview-note{font-size:10px;color:var(--mist);margin-top:11px;text-align:center}
 
 .telegram-media{overflow:hidden}.telegram-media img,.telegram-media video{width:100%;height:100%;object-fit:cover;border-radius:9px}
+.telegram-media{height:auto;min-height:96px;aspect-ratio:16/9}.telegram-media video{object-fit:contain;background:#07121d}
 .actions{display:flex;gap:7px;margin-top:12px}
 .btn{flex:1;border:0;cursor:pointer;border-radius:11px;padding:11px 6px;
   font-family:'Manrope',sans-serif;font-weight:700;font-size:12.5px;
@@ -566,6 +567,8 @@ function renderInbox() {
       </div>
       ${p.hasPhoto
         ? `<div class="media media-photo" data-viewphoto="${p.id}"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}"></div>`
+        : p.hasMediaThumb
+          ? `<div class="media media-photo" data-preview="${p.id}"><img data-media-thumb="${p.id}" alt="${esc(p.media || 'медиа')}" src="${mediaThumbCache[p.id] || ''}"><span>${esc(p.media || 'медиа')}</span></div>`
         : p.media ? `<div class="media"><span>${esc(p.media)}</span></div>` : ''}
       ${p.preview ? `<p class="body-text">${esc(p.preview)}</p>` : ''}
       <div class="actions">
@@ -746,6 +749,7 @@ function renderAll() {
   renderInbox(); renderQueue(); renderLog();
   animateNew();
   loadMissingPhotos();
+  loadMissingMediaThumbs();
   applyAvatars();
 }
 
@@ -801,6 +805,22 @@ async function loadMissingPhotos() {
       imgs.forEach(img => img.src = res.dataUrl);
     } catch (_) {
       // подпись «фото» всё равно останется видна, ошибку не показываем
+    }
+  }
+}
+
+async function loadMissingMediaThumbs() {
+  const posts = [...state.inbox, ...state.queue, ...state.log];
+  for (const post of posts) {
+    if (!post.hasMediaThumb || mediaThumbCache[post.id]) continue;
+    try {
+      const res = await api('media-thumb', { postId: post.id });
+      mediaThumbCache[post.id] = res.dataUrl;
+      document.querySelectorAll(`img[data-media-thumb="${post.id}"]`).forEach(img => {
+        img.src = res.dataUrl;
+      });
+    } catch (_) {
+      // Метка типа медиа остаётся, если миниатюру загрузить не удалось.
     }
   }
 }
@@ -1252,9 +1272,13 @@ $('photoModal').addEventListener('click', (e) => {
 
 // делегирование кликов по превью фото
 document.addEventListener('click', (e) => {
-  const photoContainer = e.target.closest('[data-viewphoto]');
+  const photoContainer = e.target.closest('[data-viewphoto], [data-preview]');
   if (photoContainer) {
-    const postId = +photoContainer.dataset.viewphoto;
+    const postId = +(photoContainer.dataset.viewphoto || photoContainer.dataset.preview);
+    if (photoContainer.dataset.preview) {
+      openPreview(postId);
+      return;
+    }
     // если фото ещё не загружено, пробуем загрузить
     if (!photoCache[postId]) {
       api('photo', { postId }).then(res => {
