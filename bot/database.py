@@ -43,6 +43,14 @@ CREATE TABLE IF NOT EXISTS posts (
 
 CREATE INDEX IF NOT EXISTS idx_posts_due ON posts (status, scheduled_at);
 
+CREATE TABLE IF NOT EXISTS subscriber_count_history (
+    captured_at      TIMESTAMPTZ PRIMARY KEY,
+    subscriber_count INTEGER NOT NULL CHECK (subscriber_count >= 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_subscriber_count_history_captured
+    ON subscriber_count_history (captured_at DESC);
+
 -- ALTER вместо переделки CREATE TABLE: таблица posts уже существует в базе
 -- на Render, а CREATE TABLE IF NOT EXISTS новую колонку в неё не добавит.
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS file_id TEXT;
@@ -347,6 +355,38 @@ async def count_stats(day_start_utc: datetime) -> dict[str, int]:
         "scheduled": row["scheduled"] or 0,
         "today": row["today"] or 0,
     }
+
+
+async def record_subscriber_count(
+    subscriber_count: int, captured_at: datetime | None = None
+) -> None:
+    """Сохраняет снимок размера канала для последующего сравнения."""
+    pool = _require_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            INSERT INTO subscriber_count_history (captured_at, subscriber_count)
+            VALUES (COALESCE($2, NOW()), $1)
+            ON CONFLICT (captured_at) DO UPDATE
+                SET subscriber_count = EXCLUDED.subscriber_count
+            """,
+            subscriber_count,
+            captured_at,
+        )
+
+
+async def get_subscriber_count_history(since: datetime) -> list[asyncpg.Record]:
+    pool = _require_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetch(
+            """
+            SELECT captured_at, subscriber_count
+              FROM subscriber_count_history
+             WHERE captured_at >= $1
+             ORDER BY captured_at
+            """,
+            since,
+        )
 
 
 # --- блокировки ---------------------------------------------------------------

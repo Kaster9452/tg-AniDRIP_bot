@@ -250,12 +250,40 @@ async def handle_state(request: web.Request) -> web.Response:
     queue = await db.get_scheduled_posts()
     published = await db.get_published_posts(limit=15)
     stats = await db.count_stats(day_start.astimezone(timezone.utc))
+    subscriber_history = await db.get_subscriber_count_history(
+        (now_local - timedelta(days=30)).astimezone(timezone.utc)
+    )
+    subscriber_stats = None
+    if subscriber_history:
+        latest = subscriber_history[-1]
+        first = subscriber_history[0]
+        today_history = [
+            row
+            for row in subscriber_history
+            if row["captured_at"] >= day_start.astimezone(timezone.utc)
+        ]
+        today_first = today_history[0] if today_history else latest
+        subscriber_stats = {
+            "current": latest["subscriber_count"],
+            "change": latest["subscriber_count"] - first["subscriber_count"],
+            "changeToday": latest["subscriber_count"]
+            - today_first["subscriber_count"],
+            "sampledAt": latest["captured_at"].astimezone(tz).isoformat(),
+            "history": [
+                {
+                    "at": row["captured_at"].astimezone(tz).isoformat(),
+                    "count": row["subscriber_count"],
+                }
+                for row in subscriber_history
+            ],
+        }
     # сетка нужна и кнопке «Свой пост», и выбору времени в карточках
     days = build_days(tz, now_local, queue)
 
     return web.json_response(
         {
             "stats": stats,
+            "subscribers": subscriber_stats,
             "inbox": [serialize(p, tz, now_local) for p in pending],
             "queue": [serialize(p, tz, now_local) for p in queue],
             "log": [serialize(p, tz, now_local) for p in published],

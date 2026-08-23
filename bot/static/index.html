@@ -54,6 +54,9 @@ body{
 .stat.is-new b{color:var(--rose)}
 .stat.is-queued b{color:var(--citrus)}
 .stat.is-done b{color:var(--mint)}
+.stat.is-subscribers b{color:#7F8FFF}
+.stat.is-subscribers .subscriber-delta.is-up{color:var(--mint)}
+.stat.is-subscribers .subscriber-delta.is-down{color:var(--rose)}
 
 /* ── строка «Свой пост» ── */
 .mine{display:flex;align-items:center;gap:11px;width:calc(100% - 36px);margin:0 18px 16px;
@@ -397,6 +400,9 @@ body{
     <div class="stat is-new"><b id="statNew">—</b><span>новых</span></div>
     <div class="stat is-queued"><b id="statQueued">—</b><span>в очереди</span></div>
     <div class="stat is-done"><b id="statDone">—</b><span>за сегодня</span></div>
+    <div class="stat is-subscribers" title="Изменение с начала сегодняшнего дня">
+      <b id="statSubscribers">—</b><span class="subscriber-delta" id="subscriberDelta">подписчиков</span>
+    </div>
   </div>
 
   <button class="mine" id="openOwn">
@@ -490,7 +496,7 @@ if (tg) { tg.ready(); tg.expand(); }
 
 const $ = (id) => document.getElementById(id);
 const initData = tg?.initData || '';
-let state = { inbox: [], queue: [], log: [], stats: {}, people: [] };
+let state = { inbox: [], queue: [], log: [], stats: {}, subscribers: null, people: [] };
 let busy = false;
 const photoCache = {}; // postId -> data:image/... — грузим фото один раз и кэшируем
 const mediaCache = {}; // postId -> data URL для предпросмотра любого медиа
@@ -744,11 +750,27 @@ function setStat(id, value) {
   el.textContent = next;
 }
 
+function renderSubscribers() {
+  const data = state.subscribers;
+  const delta = $('subscriberDelta');
+  setStat('statSubscribers', data?.current ?? '—');
+  if (!data) {
+    delta.textContent = 'подписчиков';
+    delta.classList.remove('is-up', 'is-down');
+    return;
+  }
+  const change = Number(data.changeToday || 0);
+  delta.textContent = `${change > 0 ? '+' : ''}${change} сегодня`;
+  delta.classList.toggle('is-up', change > 0);
+  delta.classList.toggle('is-down', change < 0);
+}
+
 function renderAll() {
   renderNextSlot();
   setStat('statNew', state.stats.pending);
   setStat('statQueued', state.stats.scheduled);
   setStat('statDone', state.stats.today);
+  renderSubscribers();
   renderInbox(); renderQueue(); renderLog();
   animateNew();
   loadMissingPhotos();

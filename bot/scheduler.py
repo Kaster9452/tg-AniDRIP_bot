@@ -15,15 +15,29 @@ from bot.publisher import PublishError, publish_post
 logger = logging.getLogger(__name__)
 
 CHECK_INTERVAL_SECONDS = 30
+SUBSCRIBER_SAMPLE_INTERVAL_SECONDS = 10 * 60
 
 
 async def run_scheduler(
     bot: Bot, channel_id: int, admin_group_id: int, tz: ZoneInfo
 ) -> None:
     logger.info("Планировщик отложенных постов запущен")
+    last_subscriber_sample = datetime.min.replace(tzinfo=timezone.utc)
 
     while True:
         try:
+            now = datetime.now(timezone.utc)
+            if (
+                now - last_subscriber_sample
+            ).total_seconds() >= SUBSCRIBER_SAMPLE_INTERVAL_SECONDS:
+                try:
+                    subscriber_count = await bot.get_chat_member_count(channel_id)
+                    await db.record_subscriber_count(subscriber_count, now)
+                except Exception:
+                    logger.exception("Не удалось получить число подписчиков канала")
+                finally:
+                    last_subscriber_sample = now
+
             due = await db.get_due_posts(datetime.now(timezone.utc))
             for post in due:
                 post_id = post["id"]
