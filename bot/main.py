@@ -6,17 +6,19 @@ from aiohttp import web
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.fsm.storage.memory import MemoryStorage
 
 from bot.config import load_config
-from bot.database import init_db
-from bot.handlers import admin, common, user
+from bot.database import close_db, init_db
+from bot.handlers import admin, callbacks, commands, user
+from bot.scheduler import run_scheduler
 
 
 async def handle_ping(request: web.Request) -> web.Response:
     """Отвечает на любой GET-запрос. Нужен для двух вещей:
     1) Render считает Web Service живым, только если он слушает порт;
-    2) внешний будильник (например, cron-job.org) стучится сюда каждые
-       несколько минут, чтобы Render не усыпил сервис из-за простоя."""
+    2) внешний будильник (cron-job.org) стучится сюда каждые несколько
+       минут, чтобы Render не усыпил сервис из-за простоя."""
     return web.Response(text="Bot is running")
 
 
@@ -37,27 +39,43 @@ async def main() -> None:
     )
 
     config = load_config()
-    await init_db()
+    await init_db(config.database_url)
+    logging.info("База данных подключена")
 
     bot = Bot(
         token=config.bot_token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
-    dp = Dispatcher()
+    dp = Dispatcher(storage=MemoryStorage())
 
-    # common — самый первый: конкретная команда /id должна проверяться
-    # раньше общего фильтра admin-роутера по типу чата.
-    dp.include_router(common.router)
+    # Порядок важен: конкретные команды и кнопки проверяются раньше
+    # общих обработчиков, которые ловят любые сообщения в чате.
+    dp.include_router(commands.router)
+    dp.include_router(callbacks.router)
     dp.include_router(admin.router)
     dp.include_router(user.router)
+
+    # Эти значения aiogram передаст в обработчики как аргументы
+    context = {
+        "admin_group_id": config.admin_group_id,
+        "channel_id": config.channel_id,
+        "tz": config.timezone,
+    }
 
     await bot.delete_webhook(drop_pending_updates=True)
     logging.info("Бот запущен, начинаю polling...")
 
-    await asyncio.gather(
-        dp.start_polling(bot, admin_group_id=config.admin_group_id),
-        start_web_server(config.port),
-    )
+    try:
+        await asyncio.gather(
+            dp.start_polling(bot, **context),
+            start_web_server(config.port),
+            run_scheduler(
+                bot, config.channel_id, config.admin_group_id, config.timezone
+            ),
+        )
+    finally:
+        await close_db()
+        await bot.session.close()
 
 
 if __name__ == "__main__":

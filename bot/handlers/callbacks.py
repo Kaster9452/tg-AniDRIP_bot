@@ -1,0 +1,206 @@
+import logging
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+
+from aiogram import Bot, F, Router
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.types import CallbackQuery, Message
+
+from bot import database as db
+from bot.keyboards import PostCB, main_keyboard, mode_keyboard, scheduled_keyboard
+from bot.publisher import PublishError, publish_post
+from bot.timeparse import TimeParseError, format_when, parse_when
+
+logger = logging.getLogger(__name__)
+
+router = Router(name="callbacks")
+
+
+class ScheduleStates(StatesGroup):
+    waiting_for_time = State()
+
+
+async def is_group_admin(bot: Bot, chat_id: int, user_id: int) -> bool:
+    """Кнопками может пользоваться только админ группы."""
+    try:
+        member = await bot.get_chat_member(chat_id, user_id)
+    except Exception:
+        logger.exception("Не удалось проверить права пользователя %s", user_id)
+        return False
+    return member.status in ("creator", "administrator")
+
+
+@router.callback_query(PostCB.filter(F.action == "publish"))
+async def on_publish_pressed(
+    query: CallbackQuery, callback_data: PostCB, bot: Bot
+) -> None:
+    if not await is_group_admin(bot, query.message.chat.id, query.from_user.id):
+        await query.answer("Только администраторы группы могут публиковать.", show_alert=True)
+        return
+
+    post = await db.get_post(callback_data.post_id)
+    if post is None:
+        await query.answer("Пост не найден в базе.", show_alert=True)
+        return
+    if post["status"] == "published":
+        await query.answer("Этот пост уже опубликован.", show_alert=True)
+        return
+
+    await query.message.edit_reply_markup(
+        reply_markup=mode_keyboard(callback_data.post_id, "publish")
+    )
+    await query.answer("Как публикуем?")
+
+
+@router.callback_query(PostCB.filter(F.action == "later"))
+async def on_later_pressed(query: CallbackQuery, callback_data: PostCB, bot: Bot) -> None:
+    if not await is_group_admin(bot, query.message.chat.id, query.from_user.id):
+        await query.answer("Только администраторы группы могут публиковать.", show_alert=True)
+        return
+
+    post = await db.get_post(callback_data.post_id)
+    if post is None:
+        await query.answer("Пост не найден в базе.", show_alert=True)
+        return
+    if post["status"] == "published":
+        await query.answer("Этот пост уже опубликован.", show_alert=True)
+        return
+
+    await query.message.edit_reply_markup(
+        reply_markup=mode_keyboard(callback_data.post_id, "later")
+    )
+    await query.answer("Как публикуем?")
+
+
+@router.callback_query(PostCB.filter(F.action == "back"))
+async def on_back_pressed(query: CallbackQuery, callback_data: PostCB) -> None:
+    await query.message.edit_reply_markup(
+        reply_markup=main_keyboard(callback_data.post_id)
+    )
+    await query.answer()
+
+
+@router.callback_query(PostCB.filter(F.action == "go"))
+async def on_mode_chosen(
+    query: CallbackQuery,
+    callback_data: PostCB,
+    bot: Bot,
+    state: FSMContext,
+    channel_id: int,
+    tz: ZoneInfo,
+) -> None:
+    if not await is_group_admin(bot, query.message.chat.id, query.from_user.id):
+        await query.answer("Только администраторы группы могут публиковать.", show_alert=True)
+        return
+
+    mode, action = callback_data.mode.split(":", 1)
+    with_attribution = mode == "signed"
+
+    post = await db.get_post(callback_data.post_id)
+    if post is None:
+        await query.answer("Пост не найден в базе.", show_alert=True)
+        return
+    if post["status"] == "published":
+        await query.answer("Этот пост уже опубликован.", show_alert=True)
+        return
+
+    if action == "publish":
+        try:
+            await publish_post(bot, post, channel_id, with_attribution)
+        except PublishError as exc:
+            await query.answer("Не удалось опубликовать.", show_alert=True)
+            await query.message.reply(f"⚠️ Ошибка публикации поста #{post['id']}: {exc}")
+            return
+
+        await query.message.edit_reply_markup(reply_markup=None)
+        signature = "с подписью" if with_attribution else "анонимно"
+        await query.message.reply(
+            f"✅ Пост #{post['id']} опубликован ({signature}) — "
+            f"@{query.from_user.username or query.from_user.full_name}"
+        )
+        await query.answer("Опубликовано")
+        return
+
+    # action == "later" — просим ввести время
+    await state.set_state(ScheduleStates.waiting_for_time)
+    await state.update_data(post_id=post["id"], with_attribution=with_attribution)
+    await query.message.reply(
+        f"🕓 Когда опубликовать пост #{post['id']}?\n\n"
+        f"Напишите время ответным сообщением. Примеры:\n"
+        f"<code>18:30</code> — сегодня в 18:30\n"
+        f"<code>завтра 09:00</code>\n"
+        f"<code>25.08 20:00</code>\n"
+        f"<code>+2ч</code> — через два часа\n\n"
+        f"Для отмены напишите <code>отмена</code>."
+    )
+    await query.answer()
+
+
+@router.message(ScheduleStates.waiting_for_time)
+async def on_time_entered(
+    message: Message, state: FSMContext, bot: Bot, tz: ZoneInfo
+) -> None:
+    text = (message.text or "").strip()
+
+    if text.lower() in ("отмена", "cancel", "/cancel"):
+        await state.clear()
+        await message.reply("Отложенная публикация отменена.")
+        return
+
+    try:
+        when = parse_when(text, tz)
+    except TimeParseError as exc:
+        await message.reply(f"⚠️ {exc}\n\nПопробуйте ещё раз или напишите <code>отмена</code>.")
+        return
+
+    if when <= datetime.now(tz):
+        await message.reply("⚠️ Это время уже прошло. Укажите будущее время.")
+        return
+
+    data = await state.get_data()
+    post_id = data["post_id"]
+    with_attribution = data["with_attribution"]
+    await state.clear()
+
+    await db.mark_scheduled(post_id, when.astimezone(timezone.utc), with_attribution)
+
+    post = await db.get_post(post_id)
+    if post and post["admin_chat_id"] and post["admin_message_id"]:
+        try:
+            await bot.edit_message_reply_markup(
+                chat_id=post["admin_chat_id"],
+                message_id=post["admin_message_id"],
+                reply_markup=scheduled_keyboard(post_id),
+            )
+        except Exception:
+            logger.debug("Не удалось обновить кнопки у поста %s", post_id)
+
+    signature = "с подписью" if with_attribution else "анонимно"
+    await message.reply(
+        f"🕓 Пост #{post_id} запланирован на <b>{format_when(when, tz)}</b> ({signature})."
+    )
+
+
+@router.callback_query(PostCB.filter(F.action == "cancel"))
+async def on_cancel_pressed(
+    query: CallbackQuery, callback_data: PostCB, bot: Bot
+) -> None:
+    if not await is_group_admin(bot, query.message.chat.id, query.from_user.id):
+        await query.answer("Только администраторы группы могут это делать.", show_alert=True)
+        return
+
+    post = await db.get_post(callback_data.post_id)
+    if post is None:
+        await query.answer("Пост не найден.", show_alert=True)
+        return
+    if post["status"] != "scheduled":
+        await query.answer("Этот пост не запланирован.", show_alert=True)
+        return
+
+    await db.mark_cancelled(callback_data.post_id)
+    await query.message.edit_reply_markup(
+        reply_markup=main_keyboard(callback_data.post_id)
+    )
+    await query.message.reply(f"🗑 Публикация поста #{callback_data.post_id} отменена.")
+    await query.answer("Отменено")
