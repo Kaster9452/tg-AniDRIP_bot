@@ -1,8 +1,6 @@
 import asyncio
 import logging
 
-from aiohttp import web
-
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -13,24 +11,7 @@ from bot.config import load_config
 from bot.database import close_db, init_db
 from bot.handlers import admin, callbacks, commands, user
 from bot.scheduler import run_scheduler
-
-
-async def handle_ping(request: web.Request) -> web.Response:
-    """Отвечает на любой GET-запрос. Нужен для двух вещей:
-    1) Render считает Web Service живым, только если он слушает порт;
-    2) внешний будильник (cron-job.org) стучится сюда каждые несколько
-       минут, чтобы Render не усыпил сервис из-за простоя."""
-    return web.Response(text="Bot is running")
-
-
-async def start_web_server(port: int) -> None:
-    app = web.Application()
-    app.router.add_get("/", handle_ping)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, host="0.0.0.0", port=port)
-    await site.start()
-    logging.info("Веб-сервер для будильника запущен на порту %s", port)
+from bot.webapp import start_web_server
 
 
 async def main() -> None:
@@ -69,6 +50,7 @@ async def main() -> None:
         "admin_group_id": config.admin_group_id,
         "channel_id": config.channel_id,
         "tz": config.timezone,
+        "webapp_url": config.webapp_url,
     }
 
     await bot.delete_webhook(drop_pending_updates=True)
@@ -77,7 +59,7 @@ async def main() -> None:
     try:
         await asyncio.gather(
             dp.start_polling(bot, **context),
-            start_web_server(config.port),
+            start_web_server(bot, config),
             run_scheduler(
                 bot, config.channel_id, config.admin_group_id, config.timezone
             ),

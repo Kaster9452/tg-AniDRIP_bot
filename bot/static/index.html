@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>AniDRIP — панель модерации</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap&subset=cyrillic,latin" rel="stylesheet">
+<style>
+:root{
+  --ink:#12111A;
+  --slate:#1C1B27;
+  --haze:#2A2838;
+  --bone:#EDEAF5;
+  --mist:#8F8AA6;
+  --rose:#FF5C9E;
+  --citrus:#FFD166;
+  --mint:#5BE9B9;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--ink);
+  font-family:'Manrope',system-ui,sans-serif;
+  color:var(--bone);
+  min-height:100vh;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.wrap{max-width:520px;margin:0 auto}
+
+.head{padding:18px 18px 12px}
+.eyebrow{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--mist);
+}
+.title{
+  font-family:'Unbounded',sans-serif;font-weight:800;font-size:26px;
+  letter-spacing:-.02em;margin-top:6px;line-height:1.05;
+}
+.title em{font-style:normal;color:var(--rose)}
+
+.stats{display:flex;gap:8px;padding:0 18px 16px}
+.stat{flex:1;background:var(--slate);border:1px solid var(--haze);border-radius:14px;padding:10px 12px}
+.stat b{display:block;font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:600;line-height:1}
+.stat span{font-size:10px;color:var(--mist)}
+.stat.is-new b{color:var(--rose)}
+.stat.is-queued b{color:var(--citrus)}
+.stat.is-done b{color:var(--mint)}
+
+.tabs{display:flex;gap:4px;margin:0 18px 16px;background:var(--slate);border:1px solid var(--haze);border-radius:14px;padding:4px}
+.tab{flex:1;border:0;background:transparent;color:var(--mist);font-family:'Manrope',sans-serif;
+  font-weight:600;font-size:13px;padding:9px 4px;border-radius:10px;cursor:pointer;
+  transition:background .18s ease,color .18s ease}
+.tab[aria-selected="true"]{background:var(--haze);color:var(--bone)}
+.tab:focus-visible{outline:2px solid var(--rose);outline-offset:2px}
+
+.scroll{padding:0 18px 32px}
+.panel[hidden]{display:none}
+
+.card{background:var(--slate);border:1px solid var(--haze);border-radius:18px;padding:14px;margin-bottom:12px}
+.card-top{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.ava{width:30px;height:30px;border-radius:9px;flex:none;display:grid;place-items:center;
+  font-family:'Unbounded',sans-serif;font-weight:600;font-size:12px;
+  background:linear-gradient(140deg,#3A2A45,#241F30);color:var(--rose)}
+.who{font-size:13px;font-weight:600;line-height:1.2}
+.when{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--mist)}
+.tag{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--mist);
+  background:var(--haze);border-radius:6px;padding:3px 6px}
+
+.body-text{font-size:14px;line-height:1.5;color:#D6D2E4;word-break:break-word}
+.media{height:110px;border-radius:12px;margin-bottom:10px;
+  background:radial-gradient(120% 90% at 20% 10%, rgba(255,92,158,.30), transparent 60%),
+             linear-gradient(150deg,#2E2440,#1A1727);
+  border:1px solid var(--haze);display:flex;align-items:flex-end;padding:9px}
+.media span{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--bone);
+  background:rgba(8,7,13,.6);padding:3px 7px;border-radius:6px}
+
+.actions{display:flex;gap:7px;margin-top:12px}
+.btn{flex:1;border:0;cursor:pointer;border-radius:11px;padding:11px 6px;
+  font-family:'Manrope',sans-serif;font-weight:700;font-size:12.5px;
+  transition:transform .12s ease,filter .18s ease}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn:focus-visible{outline:2px solid var(--bone);outline-offset:2px}
+.btn-pub{background:var(--rose);color:#1A0A12}
+.btn-later{background:var(--haze);color:var(--bone)}
+.btn-drop{background:transparent;color:var(--mist);border:1px solid var(--haze);flex:0 0 44px}
+
+.step{margin-top:10px;border-top:1px dashed var(--haze);padding-top:11px}
+.step[hidden]{display:none}
+.step-q{font-size:11px;color:var(--mist);margin-bottom:8px}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{border:1px solid var(--haze);background:transparent;color:var(--bone);border-radius:10px;
+  padding:8px 12px;cursor:pointer;font-family:'Manrope',sans-serif;font-weight:600;font-size:12px;
+  transition:border-color .18s ease,color .18s ease}
+.chip:hover{border-color:var(--rose);color:var(--rose)}
+.chip:focus-visible{outline:2px solid var(--rose);outline-offset:2px}
+.chip-mono{font-family:'JetBrains Mono',monospace;font-size:11.5px}
+.field{width:100%;margin-top:8px;background:var(--ink);border:1px solid var(--haze);border-radius:10px;
+  padding:10px 12px;color:var(--bone);font-family:'JetBrains Mono',monospace;font-size:12px}
+.field::placeholder{color:#5E5975}
+.field:focus{outline:none;border-color:var(--rose)}
+
+.rail{position:relative;padding-left:30px}
+.rail::before{content:"";position:absolute;left:8px;top:6px;bottom:26px;width:2px;border-radius:2px;
+  background:linear-gradient(180deg,var(--citrus),rgba(255,209,102,.12))}
+.drop{position:relative;margin-bottom:14px}
+.drop::before{content:"";position:absolute;left:-27px;top:16px;width:11px;height:11px;
+  background:var(--citrus);border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+  box-shadow:0 0 0 4px var(--ink)}
+.drop.is-next::before{background:var(--rose);animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{
+  0%,100%{box-shadow:0 0 0 4px var(--ink),0 0 0 5px rgba(255,92,158,.5)}
+  50%{box-shadow:0 0 0 4px var(--ink),0 0 0 11px rgba(255,92,158,0)}
+}
+.drop-time{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--citrus);
+  margin-bottom:5px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.drop.is-next .drop-time{color:var(--rose)}
+.badge-next{font-size:9px;letter-spacing:.1em;text-transform:uppercase;
+  background:rgba(255,92,158,.14);color:var(--rose);padding:2px 6px;border-radius:5px;
+  font-family:'Manrope',sans-serif;font-weight:700}
+.mini{background:var(--slate);border:1px solid var(--haze);border-radius:14px;padding:11px 12px}
+.mini-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.mini-who{font-size:12px;font-weight:600}
+.mini-mode{margin-left:auto;font-size:10px;color:var(--mist);border:1px solid var(--haze);
+  border-radius:6px;padding:2px 6px;white-space:nowrap}
+.mini-text{font-size:12.5px;color:#C9C4DA;line-height:1.45;word-break:break-word}
+.mini-acts{display:flex;gap:12px;margin-top:10px;flex-wrap:wrap}
+.link{background:none;border:0;cursor:pointer;padding:0;font-family:'Manrope',sans-serif;
+  font-weight:600;font-size:11.5px;color:var(--mist)}
+.link:hover{color:var(--rose)}
+.link:disabled{opacity:.5;cursor:default}
+.link:focus-visible{outline:2px solid var(--rose);outline-offset:3px;border-radius:3px}
+
+.done{display:flex;gap:11px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--haze)}
+.done:last-child{border-bottom:0}
+.done-mark{width:7px;height:7px;border-radius:50%;background:var(--mint);margin-top:6px;flex:none}
+.done-time{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--mist)}
+.done-text{font-size:12.5px;color:#C9C4DA;line-height:1.45;margin-top:3px;word-break:break-word}
+.done-mode{font-size:10px;color:var(--mist);margin-top:4px}
+
+.empty{text-align:center;padding:52px 20px;color:var(--mist)}
+.empty-drop{width:26px;height:26px;margin:0 auto 14px;background:var(--haze);
+  border-radius:50% 50% 50% 0;transform:rotate(-45deg)}
+.empty p{font-size:13px;line-height:1.5}
+
+.notice{margin:0 18px 16px;padding:12px 14px;border-radius:14px;font-size:13px;line-height:1.5;
+  background:rgba(255,92,158,.10);border:1px solid rgba(255,92,158,.35);color:#FFC2DA}
+
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,140%);
+  background:var(--bone);color:#141220;font-weight:700;font-size:13px;
+  padding:11px 18px;border-radius:12px;z-index:50;max-width:88vw;text-align:center;
+  transition:transform .28s cubic-bezier(.2,.9,.3,1.2)}
+.toast.show{transform:translate(-50%,0)}
+.toast.bad{background:var(--rose);color:#1A0A12}
+
+.skeleton{height:96px;border-radius:18px;margin-bottom:12px;
+  background:linear-gradient(100deg,var(--slate) 30%,var(--haze) 50%,var(--slate) 70%);
+  background-size:220% 100%;animation:shimmer 1.3s linear infinite}
+@keyframes shimmer{from{background-position:120% 0}to{background-position:-120% 0}}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="head">
+    <div class="eyebrow">Панель модерации</div>
+    <h1 class="title">Ani<em>DRIP</em></h1>
+  </header>
+
+  <div id="notice" class="notice" hidden></div>
+
+  <div class="stats">
+    <div class="stat is-new"><b id="statNew">—</b><span>новых</span></div>
+    <div class="stat is-queued"><b id="statQueued">—</b><span>в очереди</span></div>
+    <div class="stat is-done"><b id="statDone">—</b><span>за сегодня</span></div>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="inbox">Новые</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="queue">Очередь</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="log">История</button>
+  </div>
+
+  <div class="scroll">
+    <section class="panel" id="inbox"><div class="skeleton"></div><div class="skeleton"></div></section>
+    <section class="panel" id="queue" hidden></section>
+    <section class="panel" id="log" hidden></section>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+const $ = (id) => document.getElementById(id);
+const initData = tg?.initData || '';
+let state = { inbox: [], queue: [], log: [], stats: {} };
+let busy = false;
+
+/* ── экранирование: содержимое постов приходит от пользователей ── */
+function esc(str) {
+  return String(str ?? '').replace(/[&<>"']/g, c => (
+    { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
+  ));
+}
+
+function toast(text, bad = false) {
+  const el = $('toast');
+  el.textContent = text;
+  el.classList.toggle('bad', bad);
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+function haptic(type) {
+  try { tg?.HapticFeedback?.notificationOccurred(type); } catch (_) {}
+}
+
+async function api(path, body = {}) {
+  const res = await fetch('/api/' + path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...body, initData })
+  });
+  const data = await res.json().catch(() => ({ error: 'Сервер не ответил' }));
+  if (!res.ok || data.ok === false) throw new Error(data.error || 'Что-то пошло не так');
+  return data;
+}
+
+function showNotice(text) {
+  const el = $('notice');
+  el.textContent = text;
+  el.hidden = false;
+}
+
+/* ── отрисовка ── */
+
+function emptyBlock(text) {
+  return `<div class="empty"><div class="empty-drop"></div><p>${esc(text)}</p></div>`;
+}
+
+function renderInbox() {
+  const panel = $('inbox');
+  if (!state.inbox.length) {
+    panel.innerHTML = emptyBlock('Новых предложек нет. Как только кто-то напишет боту, пост появится здесь.');
+    return;
+  }
+  panel.innerHTML = state.inbox.map(p => `
+    <article class="card" data-card="${p.id}">
+      <div class="card-top">
+        <div class="ava">${esc(p.initials)}</div>
+        <div>
+          <div class="who">${esc(p.author)}</div>
+          <div class="when">${esc(p.ago)}</div>
+        </div>
+        <span class="tag">#${p.id}</span>
+      </div>
+      ${p.media ? `<div class="media"><span>${esc(p.media)}</span></div>` : ''}
+      ${p.preview ? `<p class="body-text">${esc(p.preview)}</p>` : ''}
+      <div class="actions">
+        <button class="btn btn-pub" data-open="pub-${p.id}">Опубликовать</button>
+        <button class="btn btn-later" data-open="lat-${p.id}">Отложить</button>
+        <button class="btn btn-drop" data-reject="${p.id}" title="Отклонить">✕</button>
+      </div>
+      <div class="step" id="pub-${p.id}" hidden>
+        <div class="step-q">Показывать автора в канале?</div>
+        <div class="chips">
+          <button class="chip" data-publish="${p.id}" data-signed="0">Анонимно</button>
+          <button class="chip" data-publish="${p.id}" data-signed="1">С подписью ${esc(p.author)}</button>
+        </div>
+      </div>
+      <div class="step" id="lat-${p.id}" hidden>
+        <div class="step-q">Когда опубликовать?</div>
+        <div class="chips">
+          <button class="chip chip-mono" data-when="${p.id}" data-value="+2ч">+2ч</button>
+          <button class="chip chip-mono" data-when="${p.id}" data-value="18:30">Сегодня 18:30</button>
+          <button class="chip chip-mono" data-when="${p.id}" data-value="завтра 09:00">Завтра 09:00</button>
+        </div>
+        <input class="field" id="time-${p.id}" placeholder="или своё: 25.08 20:00">
+        <div class="chips" style="margin-top:8px">
+          <button class="chip" data-when="${p.id}" data-custom="1" data-signed="0">Отложить анонимно</button>
+          <button class="chip" data-when="${p.id}" data-custom="1" data-signed="1">Отложить с подписью</button>
+        </div>
+      </div>
+    </article>
+  `).join('');
+}
+
+function renderQueue() {
+  const panel = $('queue');
+  if (!state.queue.length) {
+    panel.innerHTML = emptyBlock('Очередь пуста. Отложите пост из вкладки «Новые», и он появится здесь.');
+    return;
+  }
+  panel.innerHTML = '<div class="rail">' + state.queue.map((p, i) => `
+    <div class="drop ${i === 0 ? 'is-next' : ''}">
+      <div class="drop-time">
+        ${esc(p.time)} · ${esc(p.day)}
+        ${i === 0 ? '<span class="badge-next">Следующий</span>' : ''}
+      </div>
+      <div class="mini">
+        <div class="mini-row">
+          <span class="mini-who">#${p.id} от ${esc(p.author)}</span>
+          <span class="mini-mode">${p.signed ? 'с подписью' : 'анонимно'}</span>
+        </div>
+        ${p.preview ? `<p class="mini-text">${esc(p.preview)}</p>`
+                    : `<p class="mini-text">${esc(p.media || 'без текста')}</p>`}
+        <div class="mini-acts">
+          <button class="link" data-publish="${p.id}" data-signed="${p.signed ? 1 : 0}">Опубликовать сейчас</button>
+          <button class="link" data-cancel="${p.id}">Снять</button>
+        </div>
+      </div>
+    </div>
+  `).join('') + '</div>';
+}
+
+function renderLog() {
+  const panel = $('log');
+  if (!state.log.length) {
+    panel.innerHTML = emptyBlock('Пока ничего не опубликовано.');
+    return;
+  }
+  panel.innerHTML = state.log.map(p => `
+    <div class="done">
+      <span class="done-mark"></span>
+      <div>
+        <div class="done-time">${esc(p.day)} ${esc(p.time)}</div>
+        <p class="done-text">#${p.id} — ${esc(p.preview || p.media || 'без текста')}</p>
+        <div class="done-mode">${p.signed ? 'с подписью ' + esc(p.author) : 'анонимно'}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderAll() {
+  $('statNew').textContent = state.stats.pending ?? 0;
+  $('statQueued').textContent = state.stats.scheduled ?? 0;
+  $('statDone').textContent = state.stats.today ?? 0;
+  renderInbox(); renderQueue(); renderLog();
+}
+
+async function refresh() {
+  try {
+    state = await api('state');
+    renderAll();
+  } catch (err) {
+    $('inbox').innerHTML = emptyBlock(err.message);
+    $('queue').innerHTML = '';
+    $('log').innerHTML = '';
+    showNotice(err.message);
+  }
+}
+
+/* ── действия ── */
+
+async function act(path, body, okText) {
+  if (busy) return;
+  busy = true;
+  document.querySelectorAll('.btn, .chip, .link').forEach(b => b.disabled = true);
+  try {
+    const res = await api(path, body);
+    haptic('success');
+    toast(res.message || okText);
+    await refresh();
+  } catch (err) {
+    haptic('error');
+    toast(err.message, true);
+    document.querySelectorAll('.btn, .chip, .link').forEach(b => b.disabled = false);
+  } finally {
+    busy = false;
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('button');
+  if (!t) return;
+
+  if (t.dataset.open) {
+    const target = document.getElementById(t.dataset.open);
+    const wasOpen = !target.hidden;
+    document.querySelectorAll('.step').forEach(s => s.hidden = true);
+    target.hidden = wasOpen;
+    return;
+  }
+
+  if (t.dataset.publish) {
+    act('publish', { postId: +t.dataset.publish, signed: t.dataset.signed === '1' }, 'Опубликовано');
+    return;
+  }
+
+  if (t.dataset.reject) {
+    act('reject', { postId: +t.dataset.reject }, 'Отклонено');
+    return;
+  }
+
+  if (t.dataset.cancel) {
+    act('cancel', { postId: +t.dataset.cancel }, 'Снято');
+    return;
+  }
+
+  if (t.dataset.when) {
+    const id = +t.dataset.when;
+    let when = t.dataset.value;
+    let signed = t.dataset.signed === '1';
+    if (t.dataset.custom) {
+      when = document.getElementById('time-' + id).value.trim();
+      if (!when) { toast('Впишите время или выберите готовый вариант', true); return; }
+    } else {
+      // быстрые кнопки времени публикуют анонимно; для подписи есть нижние кнопки
+      signed = false;
+    }
+    act('schedule', { postId: id, when, signed }, 'Запланировано');
+  }
+});
+
+/* вкладки */
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', String(t === tab)));
+    document.querySelectorAll('.panel').forEach(p => p.hidden = (p.id !== tab.dataset.panel));
+    window.scrollTo(0, 0);
+  });
+});
+
+if (!initData) {
+  showNotice('Панель нужно открывать из Telegram — командой /panel в личке с ботом.');
+  $('inbox').innerHTML = '';
+} else {
+  refresh();
+}
+</script>
+</body>
+</html>

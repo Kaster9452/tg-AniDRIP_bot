@@ -15,6 +15,7 @@ class Config:
     database_url: str
     timezone: ZoneInfo
     timezone_name: str
+    webapp_url: str
     port: int
 
 
@@ -52,6 +53,10 @@ def load_config() -> Config:
             f"Пример правильного значения: Europe/Stockholm"
         ) from exc
 
+    # Адрес самого сервиса на Render — нужен, чтобы открыть панель как
+    # Mini App. Telegram требует именно https.
+    webapp_url = os.getenv("WEBAPP_URL", "").rstrip("/")
+
     # Render сам подставляет PORT для Web Service; для локального запуска
     # берём значение по умолчанию.
     port = int(os.getenv("PORT", "10000"))
@@ -63,5 +68,6 @@ def load_config() -> Config:
         database_url=database_url,
         timezone=tz,
         timezone_name=tz_name,
+        webapp_url=webapp_url,
         port=port,
     )

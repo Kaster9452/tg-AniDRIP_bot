@@ -262,3 +262,33 @@ async def get_published_posts(limit: int = 10) -> list[asyncpg.Record]:
             """,
             limit,
         )
+
+async def mark_rejected(post_id: int) -> None:
+    pool = _require_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE posts SET status = 'rejected', scheduled_at = NULL WHERE id = $1",
+            post_id,
+        )
+
+
+async def count_stats(day_start_utc: datetime) -> dict[str, int]:
+    """Числа для шапки панели: ждут решения, в очереди, ушло за сегодня."""
+    pool = _require_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            SELECT
+                COUNT(*) FILTER (WHERE status = 'pending')   AS pending,
+                COUNT(*) FILTER (WHERE status = 'scheduled') AS scheduled,
+                COUNT(*) FILTER (WHERE status = 'published'
+                                   AND published_at >= $1)   AS today
+            FROM posts
+            """,
+            day_start_utc,
+        )
+    return {
+        "pending": row["pending"] or 0,
+        "scheduled": row["scheduled"] or 0,
+        "today": row["today"] or 0,
+    }

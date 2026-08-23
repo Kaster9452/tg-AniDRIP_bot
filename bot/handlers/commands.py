@@ -4,7 +4,12 @@ from zoneinfo import ZoneInfo
 
 from aiogram import Bot, Router
 from aiogram.filters import Command, CommandObject
-from aiogram.types import Message
+from aiogram.types import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+    WebAppInfo,
+)
 
 from bot import database as db
 from bot.handlers.callbacks import is_group_admin
@@ -26,6 +31,7 @@ HELP_TEXT = """<b>Команды бота</b>
 /time <code>[номер] [когда]</code> — перенести на другое время
 /post <code>[номер]</code> — опубликовать прямо сейчас (анонимно)
 /posts <code>[номер]</code> — опубликовать прямо сейчас (с подписью)
+/panel — открыть панель модерации (в личке с ботом)
 /id — узнать ID текущего чата
 /help — эта справка
 
@@ -249,3 +255,38 @@ async def cmd_post_signed(
     message: Message, command: CommandObject, bot: Bot, channel_id: int
 ) -> None:
     await _publish_now(message, command, bot, channel_id, signed=True)
+
+@router.message(Command("panel"))
+async def cmd_panel(
+    message: Message, bot: Bot, webapp_url: str, admin_group_id: int
+) -> None:
+    """Кнопка запуска Mini App. Telegram разрешает такие кнопки только
+    в личной переписке с ботом, в группах они не работают."""
+    if message.chat.type != "private":
+        await message.reply("Откройте панель в личном чате со мной: команда /panel")
+        return
+
+    if not webapp_url:
+        await message.answer(
+            "Панель не настроена: не задан адрес WEBAPP_URL в переменных окружения."
+        )
+        return
+
+    if not await is_group_admin(bot, admin_group_id, message.from_user.id):
+        await message.answer("Панель доступна только администраторам группы.")
+        return
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="🗂 Открыть панель",
+                    web_app=WebAppInfo(url=f"{webapp_url}/app"),
+                )
+            ]
+        ]
+    )
+    await message.answer(
+        "Панель модерации: очередь, публикация и расписание в одном окне.",
+        reply_markup=keyboard,
+    )
