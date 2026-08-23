@@ -82,8 +82,19 @@ body{
   border:1px solid var(--haze);display:flex;align-items:flex-end;padding:9px}
 .media span{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--bone);
   background:rgba(8,7,13,.6);padding:3px 7px;border-radius:6px}
-.media-photo{padding:0;align-items:stretch}
+.media-photo{padding:0;align-items:stretch;cursor:pointer}
 .media-photo img{width:100%;height:100%;object-fit:cover;border-radius:11px;display:block}
+.media-photo img:hover{filter:brightness(1.05)}
+
+/* модальное окно для просмотра фото */
+.photo-modal{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:60;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom);animation:fadeIn .18s ease}
+.photo-modal[hidden]{display:none}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.photo-modal-close{position:absolute;top:calc(env(safe-area-inset-top) + 12px);right:16px;width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:22px;line-height:1;cursor:pointer;display:grid;place-items:center;transition:background .18s ease}
+.photo-modal-close:hover{background:rgba(255,255,255,.2)}
+.photo-modal-close:focus-visible{outline:2px solid var(--bone);outline-offset:2px}
+.photo-modal-img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.photo-modal-caption{margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--mist);text-align:center}
 
 .actions{display:flex;gap:7px;margin-top:12px}
 .btn{flex:1;border:0;cursor:pointer;border-radius:11px;padding:11px 6px;
@@ -267,6 +278,13 @@ body{
 
 <div id="toast" class="toast"></div>
 
+<!-- модальное окно для просмотра фото -->
+<div id="photoModal" class="photo-modal" hidden aria-label="Просмотр фото">
+  <button class="photo-modal-close" id="closePhotoModal" title="Закрыть">×</button>
+  <img id="photoModalImg" class="photo-modal-img" src="" alt="Фото поста">
+  <div id="photoModalCaption" class="photo-modal-caption"></div>
+</div>
+
 <script>
 const tg = window.Telegram?.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
@@ -337,7 +355,7 @@ function renderInbox() {
         <span class="tag">#${p.id}</span>
       </div>
       ${p.hasPhoto
-        ? `<div class="media media-photo"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}"></div>`
+        ? `<div class="media media-photo" data-viewphoto="${p.id}"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}"></div>`
         : p.media ? `<div class="media"><span>${esc(p.media)}</span></div>` : ''}
       ${p.preview ? `<p class="body-text">${esc(p.preview)}</p>` : ''}
       <div class="actions">
@@ -377,6 +395,29 @@ function renderQueue() {
     panel.innerHTML = emptyBlock('Очередь пуста. Отложите пост из вкладки «Новые», и он появится здесь.');
     return;
   }
+  panel.innerHTML = '<div class="rail">' + state.queue.map((p, i) => `
+    <div class="drop ${i === 0 ? 'is-next' : ''}">
+      <div class="drop-time">
+        ${esc(p.time)} · ${esc(p.day)}
+        ${i === 0 ? '<span class="badge-next">Следующий</span>' : ''}
+      </div>
+      <div class="mini" ${p.hasPhoto ? `data-viewphoto="${p.id}" style="cursor:pointer"` : ''}>
+        <div class="mini-row">
+          <span class="mini-who">#${p.id} от ${esc(p.author)}</span>
+          <span class="mini-mode">${p.signed ? 'с подписью' : 'анонимно'}</span>
+        </div>
+        ${p.hasPhoto ? `<div class="media media-photo" data-viewphoto="${p.id}"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}"></div>` : ''}
+        ${p.preview ? `<p class="mini-text">${esc(p.preview)}</p>`
+                    : `<p class="mini-text">${esc(p.media || 'без текста')}</p>`}
+        <div class="mini-acts">
+          <button class="link" data-publish="${p.id}" data-signed="${p.signed ? 1 : 0}">Опубликовать сейчас</button>
+          <button class="link" data-cancel="${p.id}">Снять</button>
+        </div>
+      </div>
+    </div>
+  `).join('') + '</div>';
+}
+
   panel.innerHTML = '<div class="rail">' + state.queue.map((p, i) => `
     <div class="drop ${i === 0 ? 'is-next' : ''}">
       <div class="drop-time">
@@ -619,6 +660,54 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.querySelectorAll('.panel').forEach(p => p.hidden = (p.id !== tab.dataset.panel));
     window.scrollTo(0, 0);
   });
+});
+
+/* ── просмотр фото: модальное окно ── */
+let currentPhotoId = null;
+
+function openPhotoModal(postId) {
+  const post = state.inbox.find(p => p.id === postId) || state.queue.find(p => p.id === postId) || state.log.find(p => p.id === postId);
+  if (!post || !photoCache[postId]) return;
+  
+  currentPhotoId = postId;
+  $('photoModalImg').src = photoCache[postId];
+  $('photoModalCaption').textContent = post.author ? `Пост #${postId} от ${post.author}` : `Пост #${postId}`;
+  $('photoModal').hidden = false;
+  
+  // включаем полный экран через Telegram WebApp (если доступно)
+  try { tg?.MainButton?.hide(); } catch (_) {}
+}
+
+function closePhotoModal() {
+  $('photoModal').hidden = true;
+  $('photoModalImg').src = '';
+  currentPhotoId = null;
+}
+
+$('closePhotoModal').addEventListener('click', closePhotoModal);
+
+// закрытие по клику вне картинки
+$('photoModal').addEventListener('click', (e) => {
+  if (e.target === $('photoModal')) closePhotoModal();
+});
+
+// делегирование кликов по превью фото
+document.addEventListener('click', (e) => {
+  const photoContainer = e.target.closest('[data-viewphoto]');
+  if (photoContainer) {
+    const postId = +photoContainer.dataset.viewphoto;
+    // если фото ещё не загружено, пробуем загрузить
+    if (!photoCache[postId]) {
+      api('photo', { postId }).then(res => {
+        photoCache[postId] = res.dataUrl;
+        const img = document.querySelector(`img[data-photo="${postId}"]`);
+        if (img) img.src = res.dataUrl;
+        openPhotoModal(postId);
+      }).catch(() => toast('Не удалось загрузить фото', true));
+    } else {
+      openPhotoModal(postId);
+    }
+  }
 });
 
 if (!initData) {
