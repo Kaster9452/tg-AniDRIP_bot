@@ -303,6 +303,44 @@ body{
 .toast.show{transform:translate(-50%,0)}
 .toast.bad{background:var(--rose);color:#1A0A12}
 
+/* ── движение ──
+   Появление списков, отклик на нажатие и уход карточки после действия.
+   Анимируем только opacity и transform: их браузер считает на видеокарте,
+   поэтому на слабых телефонах не дёргается. */
+@keyframes rise{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+.rise{animation:rise .32s cubic-bezier(.22,.68,.36,1) both}
+
+@keyframes leave{to{opacity:0;transform:scale(.97);filter:blur(1px)}}
+.leaving{animation:leave .2s ease forwards;pointer-events:none}
+
+/* панель вкладки проявляется при переключении — только прозрачностью,
+   иначе вместе с карточками получается двойное движение */
+.panel:not([hidden]){animation:fadeIn .24s ease both}
+
+/* шаг «Опубликовать» / «Отложить» внутри карточки раскрывается */
+.step:not([hidden]){animation:rise .22s ease both}
+
+/* тактильный отклик: элемент слегка проваливается под пальцем */
+.btn:active:not(:disabled),
+.chip:active:not(:disabled),
+.slot:active:not(:disabled),
+.day:active,
+.mine:active,
+.go:active:not(:disabled){transform:scale(.97)}
+.btn,.chip,.go{transition:transform .1s ease,background .18s ease,color .18s ease}
+
+/* цифры в шапке мигают, когда меняются */
+@keyframes bump{0%{transform:none}35%{transform:scale(1.18)}100%{transform:none}}
+.stat b.bump{animation:bump .34s ease}
+
+/* модальное фото не просто проявляется, а подъезжает */
+@keyframes zoom{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+.photo-modal:not([hidden]) .photo-modal-img{animation:zoom .22s cubic-bezier(.22,.68,.36,1) both}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+
 .skeleton{height:96px;border-radius:18px;margin-bottom:12px;
   background:linear-gradient(100deg,var(--slate) 30%,var(--haze) 50%,var(--slate) 70%);
   background-size:220% 100%;animation:shimmer 1.3s linear infinite}
@@ -478,7 +516,7 @@ function renderInbox() {
   panel.innerHTML = state.inbox.map(p => {
     const initials = (p.author || 'U').split(' ').map(n => n[0] || '').join('').toUpperCase().slice(0, 2);
     return `
-    <article class="card" data-card="${p.id}">
+    <article class="card" data-card="${p.id}" data-anim="in-${p.id}">
       <div class="card-top">
         <div class="ava-img" data-avatar="${p.userId}" style="background-color:${p.avatarColor || '#2A2838'}">${initials}</div>
         <div>
@@ -572,7 +610,7 @@ function renderQueue() {
     return;
   }
   panel.innerHTML = '<div class="rail">' + state.queue.map((p, i) => `
-    <div class="drop ${i === 0 ? 'is-next' : ''}">
+    <div class="drop ${i === 0 ? 'is-next' : ''}" data-anim="q-${p.id}">
       <div class="drop-time">
         ${esc(p.time)} · ${esc(p.day)}
         ${i === 0 ? '<span class="badge-next">Следующий</span>' : ''}
@@ -603,7 +641,7 @@ function renderLog() {
   panel.innerHTML = state.log.map(p => {
     const initials = (p.author || 'U').split(' ').map(n => n[0] || '').join('').toUpperCase().slice(0, 2);
     return `
-    <div class="done" ${p.hasPhoto ? `data-viewphoto="${p.id}" style="cursor:pointer"` : ''}>
+    <div class="done" data-anim="log-${p.id}" ${p.hasPhoto ? `data-viewphoto="${p.id}" style="cursor:pointer"` : ''}>
       <span class="done-mark"></span>
       <div style="display:flex;align-items:center;gap:9px;margin-bottom:8px">
         <div class="ava-img" data-avatar="${p.userId}" style="background-color:${p.avatarColor || '#2A2838'}">${initials}</div>
@@ -624,12 +662,45 @@ function renderNextSlot() {
   $('nextSlotDay').textContent = slot ? slot.dayName : 'нет окон';
 }
 
+/* ── появление списков ──
+   Панель перерисовывается каждые несколько секунд. Если запускать
+   анимацию на каждой перерисовке, список будет постоянно дёргаться,
+   поэтому помним, что уже показывали, и оживляем только новое. */
+const shown = new Set();
+
+function animateNew() {
+  let i = 0;
+  document.querySelectorAll('[data-anim]').forEach(el => {
+    const key = el.dataset.anim;
+    if (shown.has(key)) return;
+    shown.add(key);
+    el.style.animationDelay = (i++ * 45) + 'ms';
+    el.classList.add('rise');
+  });
+}
+
+/* цифры в шапке мигают, только когда действительно изменились */
+const lastStats = {};
+
+function setStat(id, value) {
+  const el = $(id);
+  const next = String(value ?? 0);
+  if (el.textContent !== next && lastStats[id] !== undefined) {
+    el.classList.remove('bump');
+    void el.offsetWidth; // перезапуск анимации
+    el.classList.add('bump');
+  }
+  lastStats[id] = next;
+  el.textContent = next;
+}
+
 function renderAll() {
   renderNextSlot();
-  $('statNew').textContent = state.stats.pending ?? 0;
-  $('statQueued').textContent = state.stats.scheduled ?? 0;
-  $('statDone').textContent = state.stats.today ?? 0;
+  setStat('statNew', state.stats.pending);
+  setStat('statQueued', state.stats.scheduled);
+  setStat('statDone', state.stats.today);
   renderInbox(); renderQueue(); renderLog();
+  animateNew();
   loadMissingPhotos();
   applyAvatars();
 }
@@ -725,6 +796,14 @@ async function act(path, body, okText, after) {
     const res = await api(path, body);
     haptic('success');
     toast(res.message || okText);
+    // карточка уходит сама, а не исчезает рывком при перерисовке
+    const card = body.postId
+      ? document.querySelector(`[data-card="${body.postId}"]`)
+      : null;
+    if (card) {
+      card.classList.add('leaving');
+      await new Promise(r => setTimeout(r, 200));
+    }
     await (after ? after() : refresh());
   } catch (err) {
     haptic('error');
@@ -942,7 +1021,7 @@ let searchTimer = null;
 function personCard(p) {
   const initials = (p.handle || 'U').split(' ').map(n => n[0] || '').join('').toUpperCase().slice(0, 2);
   return `
-    <div class="person ${p.banned ? 'is-banned' : ''}">
+    <div class="person ${p.banned ? 'is-banned' : ''}" data-anim="ppl-${p.userId}">
       <div class="ava-img" data-avatar="${p.userId}" style="background-color:${p.avatarColor || '#2A2838'}">${initials}</div>
       <div class="person-main">
         <div class="person-who">
@@ -982,6 +1061,7 @@ async function loadPeople() {
       return;
     }
     list.innerHTML = data.people.map(personCard).join('');
+    animateNew();
     
     applyAvatars();
   } catch (err) {
