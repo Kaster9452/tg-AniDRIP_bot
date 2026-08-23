@@ -348,7 +348,7 @@ function renderInbox() {
   panel.innerHTML = state.inbox.map(p => `
     <article class="card" data-card="${p.id}">
       <div class="card-top">
-        <img class="ava-img" data-avatar="p${p.userId}" src="" alt="" style="background:${p.avatarColor || '#2A2838'}">
+        <div class="ava-img" data-avatar="${p.userId}" style="background:${p.avatarColor || '#2A2838'}"></div>
         <div>
           <div class="who">${esc(p.author)}</div>
           <div class="when">${esc(p.submittedTime)} · ${esc(p.ago)}</div>
@@ -453,8 +453,17 @@ function applyAvatarColors() {
   if (state.inbox) {
     state.inbox.forEach(p => {
       if (p.avatarColor) {
-        const imgs = document.querySelectorAll(`img[data-avatar="p${p.userId}"]`);
-        imgs.forEach(img => img.style.background = p.avatarColor);
+        const avas = document.querySelectorAll(`.ava-img[data-avatar="${p.userId}"]`);
+        avas.forEach(ava => ava.style.background = p.avatarColor);
+      }
+    });
+  }
+  // Применяем цвета аватарок для log/history
+  if (state.log) {
+    state.log.forEach(p => {
+      if (p.avatarColor) {
+        const avas = document.querySelectorAll(`.ava-img[data-avatar="${p.userId}"]`);
+        avas.forEach(ava => ava.style.background = p.avatarColor);
       }
     });
   }
@@ -581,7 +590,7 @@ let searchTimer = null;
 function personCard(p) {
   return `
     <div class="person ${p.banned ? 'is-banned' : ''}">
-      <img class="ava-img" data-avatar="p${p.userId}" src="" alt="" style="background:${p.avatarColor || '#2A2838'}">
+      <div class="ava-img" data-avatar="${p.userId}" style="background:${p.avatarColor || '#2A2838'}"></div>
       <div class="person-main">
         <div class="person-who">
           ${esc(p.handle)}
