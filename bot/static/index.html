@@ -71,7 +71,10 @@ body{
   font-family:'Unbounded',sans-serif;font-weight:600;font-size:12px;
   background:linear-gradient(140deg,#3A2A45,#241F30);color:var(--rose)}
 .ava-img{width:30px;height:30px;border-radius:9px;flex:none;display:grid;place-items:center;
-  font-family:'Unbounded',sans-serif;font-weight:600;font-size:12px;background:#2A2838;color:var(--bone)}
+  font-family:'Unbounded',sans-serif;font-weight:600;font-size:12px;background:#2A2838;color:var(--bone);
+  background-size:cover;background-position:center;overflow:hidden}
+/* когда аватарка загрузилась — прячем инициалы под картинкой */
+.ava-img.has-photo{color:transparent}
 .who{font-size:13px;font-weight:600;line-height:1.2}
 .when{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--mist)}
 .tag{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--mist);
@@ -296,6 +299,7 @@ const initData = tg?.initData || '';
 let state = { inbox: [], queue: [], log: [], stats: {}, people: [] };
 let busy = false;
 const photoCache = {}; // postId -> data:image/... — грузим фото один раз и кэшируем
+const avatarCache = {}; // userId -> data:image/... либо null, если аватарки нет
 
 /* ── экранирование: содержимое постов приходит от пользователей ── */
 function esc(str) {
@@ -452,45 +456,40 @@ function renderAll() {
   $('statDone').textContent = state.stats.today ?? 0;
   renderInbox(); renderQueue(); renderLog();
   loadMissingPhotos();
-  applyAvatarColors();
+  applyAvatars();
 }
 
-function applyAvatarColors() {
-  // Применяем цвета аватарок для inbox
-  if (state.inbox) {
-    state.inbox.forEach(p => {
-      if (p.avatarColor && p.userId) {
-        const avas = document.querySelectorAll(`.ava-img[data-avatar="${p.userId}"]`);
-        avas.forEach(ava => {
-          ava.style.background = p.avatarColor;
-          ava.textContent = ava.textContent || ''; // сохраняем текст если есть
-        });
-      }
-    });
-  }
-  // Применяем цвета аватарок для log/history
-  if (state.log) {
-    state.log.forEach(p => {
-      if (p.avatarColor && p.userId) {
-        const avas = document.querySelectorAll(`.ava-img[data-avatar="${p.userId}"]`);
-        avas.forEach(ava => {
-          ava.style.background = p.avatarColor;
-          ava.textContent = ava.textContent || '';
-        });
-      }
-    });
-  }
-  // Применяем цвета аватарок для people
-  if (state.people) {
-    state.people.forEach(p => {
-      if (p.avatarColor && p.userId) {
-        const avas = document.querySelectorAll(`.ava-img[data-avatar="${p.userId}"]`);
-        avas.forEach(ava => {
-          ava.style.background = p.avatarColor;
-          ava.textContent = ava.textContent || '';
-        });
-      }
-    });
+function applyAvatars() {
+  const missing = new Set();
+
+  document.querySelectorAll('.ava-img[data-avatar]').forEach(el => {
+    const id = el.dataset.avatar;
+    if (!id || id === 'undefined') return;
+
+    const url = avatarCache[id];
+    if (url) {
+      el.style.backgroundImage = `url("${url}")`;
+      el.classList.add('has-photo');
+    } else if (url === undefined) {
+      // про этого человека ещё не спрашивали сервер
+      missing.add(id);
+    }
+    // url === null значит аватарки нет — оставляем инициалы на цветном фоне
+  });
+
+  if (missing.size) loadMissingAvatars([...missing]);
+}
+
+async function loadMissingAvatars(ids) {
+  try {
+    const data = await api('avatars', { userIds: ids });
+    // Всё, что сервер не вернул, помечаем как «аватарки нет», иначе будем
+    // спрашивать про этих людей при каждой перерисовке.
+    ids.forEach(id => { avatarCache[id] = null; });
+    Object.entries(data.avatars || {}).forEach(([id, url]) => { avatarCache[id] = url; });
+    applyAvatars();
+  } catch (_) {
+    // без аватарок панель работает как раньше, ошибку не показываем
   }
 }
 
@@ -656,8 +655,7 @@ async function loadPeople() {
     }
     list.innerHTML = data.people.map(personCard).join('');
     
-    // Применяем цвета аватарок для людей
-    applyAvatarColors();
+    applyAvatars();
   } catch (err) {
     list.innerHTML = emptyBlock(err.message);
   }

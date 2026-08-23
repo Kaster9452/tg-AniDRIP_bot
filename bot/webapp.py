@@ -121,6 +121,7 @@ def serialize(post, tz: ZoneInfo, now_local: datetime) -> dict:
     created = post["created_at"].astimezone(tz)
     data = {
         "id": post["id"],
+        "userId": post["user_id"],
         "author": author_of(post),
         "initials": initials_of(post),
         "avatarColor": avatar_color(post["user_id"]),
@@ -360,6 +361,69 @@ async def handle_photo(request: web.Request) -> web.Response:
     return web.json_response({"ok": True, "dataUrl": f"data:image/jpeg;base64,{encoded}"})
 
 
+# Аватарки меняются редко, а на каждый запрос панели их десятки — поэтому
+# держим уже скачанные в памяти. Кэш живёт до перезапуска сервиса.
+_avatar_cache: dict[int, str | None] = {}
+
+
+async def fetch_avatar(bot: Bot, user_id: int) -> str | None:
+    """Аватарка пользователя как data-URL, или None если её нет.
+
+    Как и с фото постов, прямая ссылка на файл Telegram содержит токен бота,
+    поэтому качаем сами. Отсутствие аватарки — обычное дело: человек мог её
+    не ставить или закрыть настройками приватности.
+    """
+    if user_id in _avatar_cache:
+        return _avatar_cache[user_id]
+
+    try:
+        photos = await bot.get_user_profile_photos(user_id, limit=1)
+        if not photos.photos:
+            _avatar_cache[user_id] = None
+            return None
+        # В каждом наборе размеры идут от меньшего к большему. Аватарка
+        # показывается кружком 30px, поэтому берём самый маленький.
+        smallest = photos.photos[0][0]
+        file = await bot.get_file(smallest.file_id)
+        buffer = await bot.download_file(file.file_path)
+    except Exception:
+        logger.debug("Не удалось получить аватарку пользователя %s", user_id)
+        _avatar_cache[user_id] = None
+        return None
+
+    encoded = base64.b64encode(buffer.read()).decode("ascii")
+    url = f"data:image/jpeg;base64,{encoded}"
+    _avatar_cache[user_id] = url
+    return url
+
+
+async def handle_avatars(request: web.Request) -> web.Response:
+    """Панель присылает список ID разом — так меньше запросов, чем по одному."""
+    payload = await read_payload(request)
+    await authorize(request, payload)
+
+    bot: Bot = request.app["bot"]
+
+    raw = payload.get("userIds")
+    if not isinstance(raw, list):
+        raise ApiError("Не указаны пользователи")
+
+    user_ids: list[int] = []
+    for item in raw[:60]:
+        try:
+            user_ids.append(int(item))
+        except (TypeError, ValueError):
+            continue
+
+    avatars: dict[str, str] = {}
+    for user_id in dict.fromkeys(user_ids):
+        url = await fetch_avatar(bot, user_id)
+        if url:
+            avatars[str(user_id)] = url
+
+    return web.json_response({"avatars": avatars})
+
+
 async def handle_people(request: web.Request) -> web.Response:
     payload = await read_payload(request)
     await authorize(request, payload)
@@ -493,6 +557,7 @@ def build_app(bot: Bot, config: Config) -> web.Application:
     app.router.add_get("/app", handle_app)
     app.router.add_post("/api/state", handle_state)
     app.router.add_post("/api/photo", handle_photo)
+    app.router.add_post("/api/avatars", handle_avatars)
     app.router.add_post("/api/publish", handle_publish)
     app.router.add_post("/api/schedule", handle_schedule)
     app.router.add_post("/api/cancel", handle_cancel)
