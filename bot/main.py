@@ -9,7 +9,7 @@ from aiogram.types import ErrorEvent
 
 from bot.config import load_config
 from bot.database import close_db, init_db
-from bot.handlers import admin, callbacks, commands, user
+from bot.handlers import admin, callbacks, commands, ownpost, user
 from bot.scheduler import run_scheduler
 from bot.webapp import start_web_server
 
@@ -33,6 +33,7 @@ async def main() -> None:
     # Порядок важен: конкретные команды и кнопки проверяются раньше
     # общих обработчиков, которые ловят любые сообщения в чате.
     dp.include_router(commands.router)
+    dp.include_router(ownpost.router)
     dp.include_router(callbacks.router)
     dp.include_router(admin.router)
     dp.include_router(user.router)

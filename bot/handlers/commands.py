@@ -21,29 +21,46 @@ logger = logging.getLogger(__name__)
 
 router = Router(name="commands")
 
-HELP_TEXT = """<b>Команды бота</b>
+ADMIN_HELP = """🎛 <b>AniDRIP</b> · <i>панель управления</i>
 
-<b>В группе админов:</b>
-/queue — очередь отложенных постов
-/pending — предложки, ждущие решения
-/published — последние опубликованные
-/cancel <code>[номер]</code> — отменить отложенную публикацию
-/time <code>[номер] [когда]</code> — перенести на другое время
-/post <code>[номер]</code> — опубликовать прямо сейчас (анонимно)
-/posts <code>[номер]</code> — опубликовать прямо сейчас (с подписью)
-/panel — открыть панель модерации (в личке с ботом)
-/bans — список заблокированных
-/unban <code>[id]</code> — снять блокировку по ID
-/id — узнать ID текущего чата
-/help — эта справка
+<b>━━━━━ ПРЕДЛОЖКИ ━━━━━</b>
+📥 /pending · ждут решения
+🕓 /queue · очередь отложенных
+✅ /published · последние публикации
 
-<b>Блокировка:</b>
-Ответьте (свайпом) на сообщение пользователя в группе словом <code>бан</code> — можно с причиной: <code>бан спам</code>. Снять: ответьте <code>разбан</code>.
+<b>━━━━━ ПУБЛИКАЦИЯ ━━━━━</b>
+🙈 <code>/post 12</code> · сейчас, анонимно
+✍️ <code>/posts 12</code> · сейчас, с подписью автора
+🗓 <code>/time 12 завтра 09:00</code> · перенести
+🗑 <code>/cancel 12</code> · снять с публикации
 
-<b>Форматы времени:</b>
-<code>18:30</code> · <code>завтра 09:00</code> · <code>25.08 20:00</code> · <code>25.08.2026 20:00</code> · <code>+2ч</code> · <code>+30м</code> · <code>+1д</code>
+<b>━━━━━ СВОЙ ПОСТ ━━━━━</b>
+➕ /mypost · написать свой пост и поставить в сетку
+Можно сразу с текстом: <code>/mypost Привет, канал</code>
+Время выбирается кнопками — по два часа, от 01:00 до 23:00.
 
-Отвечать пользователю можно свайпом (Reply) по его сообщению в группе."""
+<b>━━━━━ ЛЮДИ ━━━━━</b>
+🚫 /bans · кто заблокирован
+🔓 <code>/unban 943554719</code> · снять блокировку
+
+<b>━━━━━ ПРОЧЕЕ ━━━━━</b>
+🗂 /panel · панель модерации целиком
+🆔 /id · узнать ID этого чата
+
+<blockquote>💬 <b>Ответ автору</b> — свайпните по его сообщению в группе и напишите ответ, он уйдёт в личку.
+
+🚫 <b>Блокировка</b> — тем же свайпом словом <code>бан</code>, можно с причиной: <code>бан спам</code>. Снять: <code>разбан</code>.
+
+🕐 <b>Форматы времени</b> для <code>/time</code>: <code>18:30</code> · <code>завтра 09:00</code> · <code>25.08 20:00</code> · <code>+2ч</code> · <code>+30м</code> · <code>+1д</code></blockquote>"""
+
+
+USER_HELP = """👋 <b>Это предложка канала</b>
+
+Присылайте сюда всё, что считаете достойным: текст, фото, видео.
+Администраторы посмотрят и, если подойдёт, опубликуют.
+
+Публикуем анонимно или с вашей подписью — решают админы.
+Ответить вам они тоже могут прямо здесь."""
 
 
 def describe(post, tz: ZoneInfo) -> str:
@@ -57,10 +74,13 @@ def describe(post, tz: ZoneInfo) -> str:
     return f"<b>#{post['id']}</b> от {author}\n{preview}"
 
 
-@router.message(Command("help", "start"))
-async def cmd_help(message: Message) -> None:
-    if message.chat.type in ("group", "supergroup"):
-        await message.reply(HELP_TEXT)
+@router.message(Command("help"))
+async def cmd_help(message: Message, bot: Bot, admin_group_id: int) -> None:
+    """Админам — полный список команд, остальным — короткая памятка."""
+    if await is_group_admin(bot, admin_group_id, message.from_user.id):
+        await message.reply(ADMIN_HELP)
+    else:
+        await message.reply(USER_HELP)
 
 
 @router.message(Command("id"))

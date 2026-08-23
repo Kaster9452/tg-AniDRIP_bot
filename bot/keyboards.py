@@ -69,3 +69,61 @@ def scheduled_keyboard(post_id: int) -> InlineKeyboardMarkup:
             ]
         ]
     )
+
+
+class SlotCB(CallbackData, prefix="s"):
+    """Кнопки выбора времени для своего поста.
+
+    day  — переключить день, value это индекс дня (0/1/2)
+    slot — поставить пост, value это час
+    stop — отменить черновик
+    """
+
+    action: str
+    value: int
+
+
+def own_slots_keyboard(days: list[dict], day_index: int) -> InlineKeyboardMarkup:
+    """День сверху, свободные слоты ниже по три в ряд.
+
+    Прошедшие слоты не показываем вовсе: в чате их некуда приглушить,
+    а нажимать их всё равно нельзя.
+    """
+    rows: list[list[InlineKeyboardButton]] = []
+
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text=("· " + day["name"] + " ·") if day["index"] == day_index else day["name"],
+                callback_data=SlotCB(action="day", value=day["index"]).pack(),
+            )
+            for day in days
+        ]
+    )
+
+    current = days[day_index]
+    free = [slot for slot in current["slots"] if slot["state"] != "past"]
+
+    row: list[InlineKeyboardButton] = []
+    for slot in free:
+        mark = " 🟡" if slot["state"] == "taken" else ""
+        row.append(
+            InlineKeyboardButton(
+                text=f"{slot['time']}{mark}",
+                callback_data=SlotCB(action="slot", value=slot["hour"]).pack(),
+            )
+        )
+        if len(row) == 3:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text="✖️ Отменить", callback_data=SlotCB(action="stop", value=0).pack()
+            )
+        ]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
