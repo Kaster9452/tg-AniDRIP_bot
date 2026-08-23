@@ -136,6 +136,8 @@ def serialize(post, tz: ZoneInfo, now_local: datetime) -> dict:
         "preview": preview_of(post),
         "media": MEDIA_LABELS.get(post["content_type"]),
         "hasPhoto": post["content_type"] == "photo" and bool(post["file_id"]),
+        "hasMedia": bool(post["file_id"]),
+        "mediaType": post["content_type"],
         "ago": relative_ago(created, now_local),
         "submittedTime": created.strftime("%H:%M"),
         "submittedDay": day_label(created, now_local),
@@ -372,6 +374,41 @@ async def handle_photo(request: web.Request) -> web.Response:
 
     encoded = base64.b64encode(buffer.read()).decode("ascii")
     return web.json_response({"ok": True, "dataUrl": f"data:image/jpeg;base64,{encoded}"})
+
+
+MEDIA_MIME_TYPES = {
+    "photo": "image/jpeg",
+    "animation": "image/gif",
+    "sticker": "image/webp",
+    "video": "video/mp4",
+    "video_note": "video/mp4",
+    "document": "application/octet-stream",
+    "audio": "audio/mpeg",
+    "voice": "audio/ogg",
+}
+
+
+async def handle_media(request: web.Request) -> web.Response:
+    """Отдаёт медиа поста для предпросмотра без раскрытия токена бота."""
+    payload = await read_payload(request)
+    await authorize(request, payload)
+
+    bot: Bot = request.app["bot"]
+    post = await load_post(post_id_from(payload))
+    file_id = post["file_id"]
+    if not file_id:
+        raise ApiError("У этого поста нет файла", status=404)
+
+    try:
+        file = await bot.get_file(file_id)
+        buffer = await bot.download_file(file.file_path)
+    except Exception as exc:
+        logger.exception("Не удалось скачать медиа поста %s", post["id"])
+        raise ApiError("Не удалось загрузить медиа", status=502) from exc
+
+    encoded = base64.b64encode(buffer.read()).decode("ascii")
+    mime = MEDIA_MIME_TYPES.get(post["content_type"], "application/octet-stream")
+    return web.json_response({"ok": True, "dataUrl": f"data:{mime};base64,{encoded}"})
 
 
 # Аватарки меняются редко, а на каждый запрос панели их десятки — поэтому
@@ -655,6 +692,7 @@ def build_app(bot: Bot, config: Config) -> web.Application:
     app.router.add_get("/app", handle_app)
     app.router.add_post("/api/state", handle_state)
     app.router.add_post("/api/photo", handle_photo)
+    app.router.add_post("/api/media", handle_media)
     app.router.add_post("/api/avatars", handle_avatars)
     app.router.add_post("/api/slots", handle_slots)
     app.router.add_post("/api/own", handle_own)
