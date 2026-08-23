@@ -40,6 +40,15 @@ CREATE TABLE IF NOT EXISTS posts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_posts_due ON posts (status, scheduled_at);
+
+CREATE TABLE IF NOT EXISTS banned_users (
+    user_id   BIGINT PRIMARY KEY,
+    username  TEXT,
+    name      TEXT,
+    reason    TEXT,
+    banned_by TEXT,
+    banned_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 """
 
 
@@ -292,3 +301,142 @@ async def count_stats(day_start_utc: datetime) -> dict[str, int]:
         "scheduled": row["scheduled"] or 0,
         "today": row["today"] or 0,
     }
+
+
+# --- блокировки ---------------------------------------------------------------
+# Telegram не позволяет боту запретить человеку писать ему, поэтому список
+# блокировок ведём сами: сообщения из него просто не пересылаются админам.
+
+
+async def ban_user(
+    user_id: int,
+    username: str | None,
+    name: str | None,
+    reason: str | None,
+    banned_by: str | None,
+) -> None:
+    pool = _require_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            INSERT INTO banned_users (user_id, username, name, reason, banned_by)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (user_id) DO UPDATE
+                SET username = EXCLUDED.username,
+                    name = EXCLUDED.name,
+                    reason = EXCLUDED.reason,
+                    banned_by = EXCLUDED.banned_by,
+                    banned_at = NOW()
+            """,
+            user_id,
+            username,
+            name,
+            reason,
+            banned_by,
+        )
+
+
+async def unban_user(user_id: int) -> bool:
+    """Возвращает True, если человек действительно был в списке."""
+    pool = _require_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            "DELETE FROM banned_users WHERE user_id = $1", user_id
+        )
+    return result.endswith("1")
+
+
+async def is_banned(user_id: int) -> bool:
+    pool = _require_pool()
+    async with pool.acquire() as conn:
+        return bool(
+            await conn.fetchval(
+                "SELECT 1 FROM banned_users WHERE user_id = $1", user_id
+            )
+        )
+
+
+async def get_banned_users() -> list[asyncpg.Record]:
+    pool = _require_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetch(
+            "SELECT * FROM banned_users ORDER BY banned_at DESC"
+        )
+
+
+async def reject_pending_by_user(user_id: int) -> int:
+    """Заодно убирает из очереди всё, что человек уже успел прислать."""
+    pool = _require_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            """
+            UPDATE posts SET status = 'rejected', scheduled_at = NULL
+             WHERE user_id = $1 AND status IN ('pending', 'scheduled')
+            """,
+            user_id,
+        )
+    try:
+        return int(result.rsplit(" ", 1)[-1])
+    except ValueError:
+        return 0
+
+
+async def get_post_by_user_message(user_id: int) -> asyncpg.Record | None:
+    """Последний пост этого человека — нужен, чтобы узнать его имя и
+    username при блокировке через ответ в группе."""
+    pool = _require_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetchrow(
+            "SELECT * FROM posts WHERE user_id = $1 ORDER BY id DESC LIMIT 1",
+            user_id,
+        )
+
+
+# --- люди -------------------------------------------------------------------
+# Список подписчиков канала Telegram боту не отдаёт, поэтому «люди» — это все,
+# кто когда-либо писал боту: их мы знаем из таблицы постов.
+
+
+async def search_people(
+    query: str = "", only_banned: bool = False, limit: int = 60
+) -> list[asyncpg.Record]:
+    """Ищет по username, имени или числовому ID. Пустой запрос — все подряд,
+    начиная с тех, кто писал недавно."""
+    pattern = f"%{query.strip()}%" if query.strip() else None
+    numeric = query.strip() if query.strip().isdigit() else None
+
+    pool = _require_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetch(
+            """
+            SELECT
+                p.user_id,
+                (array_agg(p.author_name     ORDER BY p.id DESC))[1] AS name,
+                (array_agg(p.author_username ORDER BY p.id DESC))[1] AS username,
+                COUNT(*)                                        AS total,
+                COUNT(*) FILTER (WHERE p.status = 'published')  AS published,
+                COUNT(*) FILTER (WHERE p.status = 'pending')    AS pending,
+                MAX(p.created_at)                               AS last_seen,
+                (b.user_id IS NOT NULL)                         AS banned,
+                b.reason                                        AS ban_reason
+            FROM posts p
+            LEFT JOIN banned_users b ON b.user_id = p.user_id
+            WHERE ($1::text IS NULL
+                   OR p.author_username ILIKE $1
+                   OR p.author_name ILIKE $1
+                   OR p.user_id::text = $2)
+              AND ($3 = FALSE OR b.user_id IS NOT NULL)
+            GROUP BY p.user_id, b.user_id, b.reason
+            ORDER BY MAX(p.created_at) DESC
+            LIMIT $4
+            """,
+            pattern,
+            numeric,
+            only_banned,
+            limit,
+        )
+
+
+async def get_person(user_id: int) -> asyncpg.Record | None:
+    rows = await search_people(str(user_id), limit=1)
+    return rows[0] if rows else None

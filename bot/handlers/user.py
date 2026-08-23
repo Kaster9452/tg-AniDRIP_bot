@@ -37,6 +37,14 @@ async def cmd_start(message: Message) -> None:
 @router.message(F.chat.type == "private")
 async def forward_to_admins(message: Message, bot: Bot, admin_group_id: int) -> None:
     user = message.from_user
+
+    # Заблокированные не проходят дальше: админы их сообщений не увидят.
+    if await db.is_banned(user.id):
+        await message.answer(
+            "Отправка предложений для вас закрыта администраторами."
+        )
+        return
+
     content_type = message.content_type
 
     # Текст или подпись сохраняем в HTML, чтобы не потерять форматирование

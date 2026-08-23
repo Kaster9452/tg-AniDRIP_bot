@@ -32,8 +32,13 @@ HELP_TEXT = """<b>Команды бота</b>
 /post <code>[номер]</code> — опубликовать прямо сейчас (анонимно)
 /posts <code>[номер]</code> — опубликовать прямо сейчас (с подписью)
 /panel — открыть панель модерации (в личке с ботом)
+/bans — список заблокированных
+/unban <code>[id]</code> — снять блокировку по ID
 /id — узнать ID текущего чата
 /help — эта справка
+
+<b>Блокировка:</b>
+Ответьте (свайпом) на сообщение пользователя в группе словом <code>бан</code> — можно с причиной: <code>бан спам</code>. Снять: ответьте <code>разбан</code>.
 
 <b>Форматы времени:</b>
 <code>18:30</code> · <code>завтра 09:00</code> · <code>25.08 20:00</code> · <code>25.08.2026 20:00</code> · <code>+2ч</code> · <code>+30м</code> · <code>+1д</code>
@@ -320,3 +325,45 @@ async def cmd_panel(
         "Панель модерации: очередь, публикация и расписание в одном окне.",
         reply_markup=keyboard,
     )
+
+
+@router.message(Command("bans"))
+async def cmd_bans(message: Message, bot: Bot) -> None:
+    rows = await db.get_banned_users()
+    if not rows:
+        await message.reply("Заблокированных нет.")
+        return
+
+    lines = ["<b>🚫 Заблокированные</b>\n"]
+    for row in rows:
+        who = f"@{row['username']}" if row["username"] else (row["name"] or "без имени")
+        line = f"{who} — <code>{row['user_id']}</code>"
+        if row["reason"]:
+            line += f"\nпричина: {row['reason']}"
+        lines.append(line + "\n")
+    lines.append("Снять: <code>/unban ID</code> или ответом «разбан» на сообщение.")
+    await message.reply("\n".join(lines))
+
+
+@router.message(Command("unban"))
+async def cmd_unban(
+    message: Message, command: CommandObject, bot: Bot, admin_group_id: int
+) -> None:
+    if not await is_group_admin(bot, admin_group_id, message.from_user.id):
+        await message.reply("Эта команда доступна только администраторам группы.")
+        return
+
+    if not command.args:
+        await message.reply("Укажите ID, например: <code>/unban 943554719</code>")
+        return
+
+    try:
+        user_id = int(command.args.split()[0])
+    except ValueError:
+        await message.reply("ID должен быть числом. Посмотреть можно в /bans.")
+        return
+
+    if await db.unban_user(user_id):
+        await message.reply("✅ Блокировка снята.")
+    else:
+        await message.reply("Этот пользователь не был заблокирован.")

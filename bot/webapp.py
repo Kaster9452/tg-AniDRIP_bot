@@ -124,6 +124,22 @@ def serialize(post, tz: ZoneInfo, now_local: datetime) -> dict:
     return data
 
 
+def serialize_person(row, tz: ZoneInfo, now_local: datetime) -> dict:
+    handle = f"@{row['username']}" if row["username"] else (row["name"] or "без имени")
+    return {
+        "userId": row["user_id"],
+        "name": row["name"] or "",
+        "handle": handle,
+        "initials": (row["username"] or row["name"] or "?").lstrip("@")[:2].lower(),
+        "total": row["total"],
+        "published": row["published"],
+        "pending": row["pending"],
+        "lastSeen": relative_ago(row["last_seen"].astimezone(tz), now_local),
+        "banned": bool(row["banned"]),
+        "banReason": row["ban_reason"] or "",
+    }
+
+
 # --- авторизация ------------------------------------------------------------
 
 
@@ -297,6 +313,73 @@ async def handle_reject(request: web.Request) -> web.Response:
     return web.json_response({"ok": True, "message": "Отклонено"})
 
 
+async def handle_people(request: web.Request) -> web.Response:
+    payload = await read_payload(request)
+    await authorize(request, payload)
+
+    config: Config = request.app["config"]
+    tz = config.timezone
+    now_local = datetime.now(tz)
+
+    query = str(payload.get("query", ""))[:64]
+    only_banned = bool(payload.get("onlyBanned"))
+
+    rows = await db.search_people(query, only_banned=only_banned)
+    return web.json_response(
+        {"people": [serialize_person(r, tz, now_local) for r in rows]}
+    )
+
+
+async def handle_ban(request: web.Request) -> web.Response:
+    payload = await read_payload(request)
+    admin = await authorize(request, payload)
+
+    bot: Bot = request.app["bot"]
+
+    by = f"@{admin['username']}" if admin.get("username") else admin.get("first_name", "админ")
+    reason = str(payload.get("reason", "")).strip() or None
+
+    # С карточки предложки приходит номер поста, с экрана людей — ID человека.
+    post = None
+    if payload.get("postId") is not None:
+        post = await load_post(post_id_from(payload))
+        user_id = post["user_id"]
+        username, name = post["author_username"], post["author_name"]
+    else:
+        try:
+            user_id = int(payload["userId"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ApiError("Не указан пользователь") from exc
+        person = await db.get_person(user_id)
+        username = person["username"] if person else None
+        name = person["name"] if person else None
+
+    await db.ban_user(user_id, username, name, reason, by)
+    dropped = await db.reject_pending_by_user(user_id)
+    if post is not None:
+        await clear_admin_buttons(bot, post)
+
+    message = "Заблокирован"
+    if dropped > 1:
+        message += f", постов убрано: {dropped}"
+    return web.json_response({"ok": True, "message": message})
+
+
+async def handle_unban(request: web.Request) -> web.Response:
+    payload = await read_payload(request)
+    await authorize(request, payload)
+
+    try:
+        user_id = int(payload["userId"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ApiError("Не указан пользователь") from exc
+
+    if not await db.unban_user(user_id):
+        raise ApiError("Этот пользователь не заблокирован")
+
+    return web.json_response({"ok": True, "message": "Блокировка снята"})
+
+
 # --- синхронизация с кнопками в группе --------------------------------------
 
 
@@ -366,6 +449,9 @@ def build_app(bot: Bot, config: Config) -> web.Application:
     app.router.add_post("/api/schedule", handle_schedule)
     app.router.add_post("/api/cancel", handle_cancel)
     app.router.add_post("/api/reject", handle_reject)
+    app.router.add_post("/api/people", handle_people)
+    app.router.add_post("/api/ban", handle_ban)
+    app.router.add_post("/api/unban", handle_unban)
     return app
 
 
