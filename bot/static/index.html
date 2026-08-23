@@ -70,7 +70,8 @@ body{
 .ava{width:30px;height:30px;border-radius:9px;flex:none;display:grid;place-items:center;
   font-family:'Unbounded',sans-serif;font-weight:600;font-size:12px;
   background:linear-gradient(140deg,#3A2A45,#241F30);color:var(--rose)}
-.ava-img{width:30px;height:30px;border-radius:9px;flex:none;object-fit:cover;background:#2A2838;display:block}
+.ava-img{width:30px;height:30px;border-radius:9px;flex:none;display:grid;place-items:center;
+  font-family:'Unbounded',sans-serif;font-weight:600;font-size:12px;background:#2A2838;color:var(--bone)}
 .who{font-size:13px;font-weight:600;line-height:1.2}
 .when{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--mist)}
 .tag{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--mist);
@@ -345,10 +346,12 @@ function renderInbox() {
     panel.innerHTML = emptyBlock('Новых предложек нет. Как только кто-то напишет боту, пост появится здесь.');
     return;
   }
-  panel.innerHTML = state.inbox.map(p => `
+  panel.innerHTML = state.inbox.map(p => {
+    const initials = (p.author || 'U').split(' ').map(n => n[0] || '').join('').toUpperCase().slice(0, 2);
+    return `
     <article class="card" data-card="${p.id}">
       <div class="card-top">
-        <div class="ava-img" data-avatar="${p.userId}" style="background:${p.avatarColor || '#2A2838'}"></div>
+        <div class="ava-img" data-avatar="${p.userId}" style="background:${p.avatarColor || '#2A2838'}">${initials}</div>
         <div>
           <div class="who">${esc(p.author)}</div>
           <div class="when">${esc(p.submittedTime)} · ${esc(p.ago)}</div>
@@ -426,17 +429,22 @@ function renderLog() {
     panel.innerHTML = emptyBlock('Пока ничего не опубликовано.');
     return;
   }
-  panel.innerHTML = state.log.map(p => `
+  panel.innerHTML = state.log.map(p => {
+    const initials = (p.author || 'U').split(' ').map(n => n[0] || '').join('').toUpperCase().slice(0, 2);
+    return `
     <div class="done" ${p.hasPhoto ? `data-viewphoto="${p.id}" style="cursor:pointer"` : ''}>
       <span class="done-mark"></span>
-      <div>
-        <div class="done-time">${esc(p.day)} ${esc(p.time)}</div>
-        ${p.hasPhoto ? `<div class="media media-photo" data-viewphoto="${p.id}" style="height:60px;margin-bottom:6px"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}"></div>` : ''}
-        <p class="done-text">#${p.id} — ${esc(p.preview || p.media || 'без текста')}</p>
-        <div class="done-mode">${p.signed ? 'с подписью ' + esc(p.author) : 'анонимно'}</div>
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:8px">
+        <div class="ava-img" data-avatar="${p.userId}" style="background:${p.avatarColor || '#2A2838'}">${initials}</div>
+        <div>
+          <div class="done-time">${esc(p.day)} ${esc(p.time)}</div>
+          <div class="done-mode">${p.signed ? 'с подписью ' + esc(p.author) : 'анонимно'}</div>
+        </div>
       </div>
+      ${p.hasPhoto ? `<div class="media media-photo" data-viewphoto="${p.id}" style="height:60px;margin-bottom:6px"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}"></div>` : ''}
+      <p class="done-text">#${p.id} — ${esc(p.preview || p.media || 'без текста')}</p>
     </div>
-  `).join('');
+  `}).join('');
 }
 
 function renderAll() {
@@ -588,9 +596,10 @@ let peopleFilter = 'all';
 let searchTimer = null;
 
 function personCard(p) {
+  const initials = (p.handle || 'U').split(' ').map(n => n[0] || '').join('').toUpperCase().slice(0, 2);
   return `
     <div class="person ${p.banned ? 'is-banned' : ''}">
-      <div class="ava-img" data-avatar="${p.userId}" style="background:${p.avatarColor || '#2A2838'}"></div>
+      <div class="ava-img" data-avatar="${p.userId}" style="background:${p.avatarColor || '#2A2838'}">${initials}</div>
       <div class="person-main">
         <div class="person-who">
           ${esc(p.handle)}
@@ -632,8 +641,8 @@ async function loadPeople() {
     // Применяем цвета аватарок для людей
     data.people.forEach(p => {
       if (p.avatarColor) {
-        const imgs = document.querySelectorAll(`img[data-avatar="p${p.userId}"]`);
-        imgs.forEach(img => img.style.background = p.avatarColor);
+        const avas = document.querySelectorAll(`.ava-img[data-avatar="${p.userId}"]`);
+        avas.forEach(ava => ava.style.background = p.avatarColor);
       }
     });
   } catch (err) {
