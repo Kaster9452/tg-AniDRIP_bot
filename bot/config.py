@@ -45,13 +45,13 @@ def load_config() -> Config:
     channel_id = _as_int("CHANNEL_ID", _required("CHANNEL_ID"))
     database_url = _required("DATABASE_URL")
 
-    tz_name = os.getenv("TIMEZONE", "Europe/Stockholm")
+    tz_name = os.getenv("TIMEZONE", "Europe/Moscow")
     try:
         tz = ZoneInfo(tz_name)
     except Exception as exc:
         raise RuntimeError(
             f"Неизвестный часовой пояс TIMEZONE={tz_name}. "
-            f"Пример правильного значения: Europe/Stockholm"
+            f"Пример правильного значения: Europe/Moscow"
         ) from exc
 
     # Адрес самого сервиса на Render — нужен, чтобы открыть панель как

@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS posts (
     author_username    TEXT,
     content_type       TEXT NOT NULL,
     content_html       TEXT,
+    file_id            TEXT,
     admin_chat_id      BIGINT,
     admin_message_id   BIGINT,
     status             TEXT NOT NULL DEFAULT 'pending',
@@ -40,6 +41,10 @@ CREATE TABLE IF NOT EXISTS posts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_posts_due ON posts (status, scheduled_at);
+
+-- ALTER вместо переделки CREATE TABLE: таблица posts уже существует в базе
+-- на Render, а CREATE TABLE IF NOT EXISTS новую колонку в неё не добавит.
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS file_id TEXT;
 
 CREATE TABLE IF NOT EXISTS banned_users (
     user_id   BIGINT PRIMARY KEY,
@@ -132,14 +137,15 @@ async def create_post(
     author_username: str | None,
     content_type: str,
     content_html: str | None,
+    file_id: str | None = None,
 ) -> int:
     pool = _require_pool()
     async with pool.acquire() as conn:
         return await conn.fetchval(
             """
             INSERT INTO posts (user_id, user_message_id, author_name,
-                               author_username, content_type, content_html)
-            VALUES ($1, $2, $3, $4, $5, $6)
+                               author_username, content_type, content_html, file_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING id
             """,
             user_id,
@@ -148,6 +154,7 @@ async def create_post(
             author_username,
             content_type,
             content_html,
+            file_id,
         )
 
 

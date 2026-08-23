@@ -82,6 +82,8 @@ body{
   border:1px solid var(--haze);display:flex;align-items:flex-end;padding:9px}
 .media span{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--bone);
   background:rgba(8,7,13,.6);padding:3px 7px;border-radius:6px}
+.media-photo{padding:0;align-items:stretch}
+.media-photo img{width:100%;height:100%;object-fit:cover;border-radius:11px;display:block}
 
 .actions{display:flex;gap:7px;margin-top:12px}
 .btn{flex:1;border:0;cursor:pointer;border-radius:11px;padding:11px 6px;
@@ -273,6 +275,7 @@ const $ = (id) => document.getElementById(id);
 const initData = tg?.initData || '';
 let state = { inbox: [], queue: [], log: [], stats: {} };
 let busy = false;
+const photoCache = {}; // postId -> data:image/... — грузим фото один раз и кэшируем
 
 /* ── экранирование: содержимое постов приходит от пользователей ── */
 function esc(str) {
@@ -329,11 +332,13 @@ function renderInbox() {
         <div class="ava">${esc(p.initials)}</div>
         <div>
           <div class="who">${esc(p.author)}</div>
-          <div class="when">${esc(p.ago)}</div>
+          <div class="when">${esc(p.submittedTime)} · ${esc(p.ago)}</div>
         </div>
         <span class="tag">#${p.id}</span>
       </div>
-      ${p.media ? `<div class="media"><span>${esc(p.media)}</span></div>` : ''}
+      ${p.hasPhoto
+        ? `<div class="media media-photo"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}"></div>`
+        : p.media ? `<div class="media"><span>${esc(p.media)}</span></div>` : ''}
       ${p.preview ? `<p class="body-text">${esc(p.preview)}</p>` : ''}
       <div class="actions">
         <button class="btn btn-pub" data-open="pub-${p.id}">Опубликовать</button>
@@ -417,6 +422,21 @@ function renderAll() {
   $('statQueued').textContent = state.stats.scheduled ?? 0;
   $('statDone').textContent = state.stats.today ?? 0;
   renderInbox(); renderQueue(); renderLog();
+  loadMissingPhotos();
+}
+
+async function loadMissingPhotos() {
+  const ids = state.inbox.filter(p => p.hasPhoto && !photoCache[p.id]).map(p => p.id);
+  for (const id of ids) {
+    try {
+      const res = await api('photo', { postId: id });
+      photoCache[id] = res.dataUrl;
+      const img = document.querySelector(`img[data-photo="${id}"]`);
+      if (img) img.src = res.dataUrl;
+    } catch (_) {
+      // подпись «фото» всё равно останется видна, ошибку не показываем
+    }
+  }
 }
 
 async function refresh() {
@@ -429,6 +449,18 @@ async function refresh() {
     $('log').innerHTML = '';
     showNotice(err.message);
   }
+}
+
+/* ── автообновление: подтягиваем новые посты сами, без перезагрузки ── */
+function scheduleAutoRefresh() {
+  setInterval(() => {
+    // не дёргаем панель, пока админ печатает время или держит открытым
+    // шаг с кнопками — иначе слетит то, что он уже начал вводить
+    const typing = document.activeElement && document.activeElement.classList.contains('field');
+    const stepOpen = document.querySelector('.step:not([hidden])');
+    if (busy || typing || stepOpen || document.hidden) return;
+    refresh();
+  }, 4000);
 }
 
 /* ── действия ── */
@@ -594,6 +626,7 @@ if (!initData) {
   $('inbox').innerHTML = '';
 } else {
   refresh();
+  scheduleAutoRefresh();
 }
 </script>
 </body>

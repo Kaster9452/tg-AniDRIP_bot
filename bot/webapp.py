@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import base64
 import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -109,7 +110,10 @@ def serialize(post, tz: ZoneInfo, now_local: datetime) -> dict:
         "initials": initials_of(post),
         "preview": preview_of(post),
         "media": MEDIA_LABELS.get(post["content_type"]),
+        "hasPhoto": post["content_type"] == "photo" and bool(post["file_id"]),
         "ago": relative_ago(created, now_local),
+        "submittedTime": created.strftime("%H:%M"),
+        "submittedDay": day_label(created, now_local),
         "signed": bool(post["with_attribution"]),
     }
     if post["scheduled_at"]:
@@ -313,6 +317,32 @@ async def handle_reject(request: web.Request) -> web.Response:
     return web.json_response({"ok": True, "message": "Отклонено"})
 
 
+async def handle_photo(request: web.Request) -> web.Response:
+    """Отдаёт фото поста как data-URL, чтобы панель могла показать превью.
+
+    Прямая ссылка на файл Telegram содержит токен бота, поэтому качаем файл
+    сами и отдаём его панели уже в виде байтов — токен наружу не уходит.
+    """
+    payload = await read_payload(request)
+    await authorize(request, payload)
+
+    bot: Bot = request.app["bot"]
+    post = await load_post(post_id_from(payload))
+
+    if post["content_type"] != "photo" or not post["file_id"]:
+        raise ApiError("У этого поста нет фото", status=404)
+
+    try:
+        file = await bot.get_file(post["file_id"])
+        buffer = await bot.download_file(file.file_path)
+    except Exception as exc:
+        logger.exception("Не удалось скачать фото поста %s", post["id"])
+        raise ApiError("Не удалось загрузить фото", status=502) from exc
+
+    encoded = base64.b64encode(buffer.read()).decode("ascii")
+    return web.json_response({"ok": True, "dataUrl": f"data:image/jpeg;base64,{encoded}"})
+
+
 async def handle_people(request: web.Request) -> web.Response:
     payload = await read_payload(request)
     await authorize(request, payload)
@@ -445,6 +475,7 @@ def build_app(bot: Bot, config: Config) -> web.Application:
     app.router.add_get("/", handle_ping)
     app.router.add_get("/app", handle_app)
     app.router.add_post("/api/state", handle_state)
+    app.router.add_post("/api/photo", handle_photo)
     app.router.add_post("/api/publish", handle_publish)
     app.router.add_post("/api/schedule", handle_schedule)
     app.router.add_post("/api/cancel", handle_cancel)

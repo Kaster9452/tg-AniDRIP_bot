@@ -51,6 +51,9 @@ async def forward_to_admins(message: Message, bot: Bot, admin_group_id: int) -> 
     # (жирный, ссылки и т.п.) при последующей публикации в канал.
     content_html = message.html_text if (message.text or message.caption) else None
 
+    # Самое большое фото из присланных размеров — его же покажем в панели.
+    file_id = message.photo[-1].file_id if message.photo else None
+
     post_id = await db.create_post(
         user_id=user.id,
         user_message_id=message.message_id,
@@ -58,6 +61,7 @@ async def forward_to_admins(message: Message, bot: Bot, admin_group_id: int) -> 
         author_username=user.username,
         content_type=content_type,
         content_html=content_html,
+        file_id=file_id,
     )
 
     header = build_header(message, post_id)
