@@ -7,6 +7,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import ErrorEvent
 
 from bot.config import load_config
 from bot.database import close_db, init_db
@@ -54,6 +55,14 @@ async def main() -> None:
     dp.include_router(callbacks.router)
     dp.include_router(admin.router)
     dp.include_router(user.router)
+
+    @dp.error()
+    async def on_error(event: ErrorEvent) -> None:
+        """Без этого падение внутри обработчика проходит незаметно:
+        кнопка просто бесконечно «крутится», а причина нигде не видна."""
+        logging.exception(
+            "Необработанная ошибка: %s", event.exception, exc_info=event.exception
+        )
 
     # Эти значения aiogram передаст в обработчики как аргументы
     context = {
