@@ -195,7 +195,9 @@ body{
 .preview-head{display:flex;align-items:center;gap:9px;margin-bottom:13px}.preview-title{font-family:'Unbounded',sans-serif;font-size:14px;font-weight:600}.preview-close{margin-left:auto;width:34px;height:34px;border:1px solid var(--haze);border-radius:10px;background:var(--slate);color:var(--bone);font-size:20px;cursor:pointer}.preview-close:hover{border-color:var(--rose);color:var(--rose)}
 .preview-post{overflow:hidden;border:1px solid #263748;border-radius:14px;background:#0b1724}.telegram-chat{min-height:260px;padding:24px 12px 18px;display:flex;align-items:flex-end;background:#0b1724;background-image:radial-gradient(rgba(126,161,184,.08) 1px,transparent 1px),radial-gradient(rgba(0,0,0,.12) 1px,transparent 1px);background-position:0 0,13px 13px;background-size:26px 26px}.telegram-bubble{position:relative;max-width:94%;padding:9px 10px 6px;border-radius:16px 16px 16px 3px;background:#182939;color:#f1f4f6;box-shadow:0 1px 1px rgba(0,0,0,.24)}.telegram-bubble::after{content:"";position:absolute;left:-7px;bottom:0;border-right:9px solid #182939;border-top:8px solid transparent}.telegram-text{font-size:14px;line-height:1.45;word-break:break-word}.telegram-media{height:96px;margin:-2px -4px 8px;border-radius:10px;background:linear-gradient(140deg,#31506a,#1b3547);color:#dce8ee;display:flex;align-items:flex-end;padding:7px;font-size:10px}.telegram-meta{float:right;margin:4px 0 0 10px;color:#7892a4;font-size:10px}.preview-note{font-size:10px;color:var(--mist);margin-top:11px;text-align:center}
 
-.telegram-media{overflow:hidden}.telegram-media img,.telegram-media video{width:100%;height:100%;object-fit:cover;border-radius:9px}
+.telegram-media{overflow:hidden}.telegram-media img,.telegram-media video{width:100%;height:100%;object-fit:cover;border-radius:9px;display:block}.telegram-media video{object-fit:contain;background:#07121d}.media-expand{position:absolute;right:8px;bottom:8px;width:38px;height:38px;border:0;border-radius:11px;background:rgba(0,0,0,.7);color:#fff;font-size:20px;cursor:pointer}.telegram-media{position:relative}.media-expand:focus-visible{outline:2px solid var(--rose);outline-offset:2px}
+.media-photo .media-label{position:absolute;left:8px;bottom:8px;z-index:1}
+.telegram-media video.is-expanded{position:fixed;inset:0;z-index:80;width:100vw;height:100vh;max-width:none;max-height:none;border-radius:0;background:#000}
 .telegram-media{height:auto;min-height:96px;aspect-ratio:16/9}.telegram-media video{object-fit:contain;background:#07121d}
 .actions{display:flex;gap:7px;margin-top:12px}
 .btn{flex:1;border:0;cursor:pointer;border-radius:11px;padding:11px 6px;
@@ -568,7 +570,7 @@ function renderInbox() {
       ${p.hasPhoto
         ? `<div class="media media-photo" data-viewphoto="${p.id}"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}"></div>`
         : p.hasMediaThumb
-          ? `<div class="media media-photo" data-preview="${p.id}"><img data-media-thumb="${p.id}" alt="${esc(p.media || 'медиа')}" src="${mediaThumbCache[p.id] || ''}"><span>${esc(p.media || 'медиа')}</span></div>`
+          ? `<div class="media media-photo" data-preview="${p.id}"><img data-media-thumb="${p.id}" alt="${esc(p.media || 'медиа')}" src="${mediaThumbCache[p.id] || ''}"><span class="media-label">${esc(p.media || 'медиа')}</span></div>`
         : p.media ? `<div class="media"><span>${esc(p.media)}</span></div>` : ''}
       ${p.preview ? `<p class="body-text">${esc(p.preview)}</p>` : ''}
       <div class="actions">
@@ -881,6 +883,11 @@ async function act(path, body, okText, after) {
 document.addEventListener('click', (e) => {
   const t = e.target.closest('button');
   if (!t) return;
+
+  if (t.dataset.expandVideo) {
+    expandPreviewVideo();
+    return;
+  }
 
   if (t.dataset.preview) {
     openPreview(+t.dataset.preview);
@@ -1235,7 +1242,7 @@ async function openPreview(postId) {
       const tag = post.mediaType === 'video' || post.mediaType === 'video_note' ? 'video' : 'img';
       const mediaEl = $('previewPost').querySelector('.telegram-media');
       if (mediaEl) mediaEl.innerHTML = tag === 'video'
-        ? `<video src="${mediaCache[postId]}" controls></video>`
+        ? `<video id="previewVideo" src="${mediaCache[postId]}" controls playsinline></video><button class="media-expand" data-expand-video title="Открыть на весь экран" aria-label="Открыть видео на весь экран">⛶</button>`
         : `<img src="${mediaCache[postId]}" alt="${esc(post.media || 'медиа')}">`;
     } catch (_) {
       // Для фото используем старый проверенный endpoint как запасной путь.
@@ -1256,6 +1263,18 @@ async function openPreview(postId) {
 function closePreview() {
   $('previewModal').hidden = true;
   $('previewPost').innerHTML = '';
+}
+
+function expandPreviewVideo() {
+  const video = $('previewVideo');
+  if (!video) return;
+  if (video.requestFullscreen) {
+    video.requestFullscreen().catch(() => {});
+  } else if (video.webkitEnterFullscreen) {
+    video.webkitEnterFullscreen();
+  } else {
+    video.classList.toggle('is-expanded');
+  }
 }
 
 $('closePreview').addEventListener('click', closePreview);
