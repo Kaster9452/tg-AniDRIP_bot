@@ -176,8 +176,9 @@ body{
   border:1px solid var(--haze);display:flex;align-items:flex-end;padding:9px}
 .media span{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--bone);
   background:rgba(8,7,13,.6);padding:3px 7px;border-radius:6px}
-.media-photo{padding:0;align-items:stretch;cursor:pointer}
+.media-photo{position:relative;padding:0;align-items:stretch;cursor:pointer}
 .media-photo img{width:100%;height:100%;object-fit:cover;border-radius:11px;display:block}
+.media-photo .media-label{position:absolute;left:9px;bottom:9px;z-index:2;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--bone);background:rgba(8,7,13,.78);padding:4px 7px;border-radius:6px}
 .media-photo img:hover{filter:brightness(1.05)}
 
 /* модальное окно для просмотра фото */
@@ -1269,12 +1270,17 @@ function expandPreviewVideo() {
   const video = $('previewVideo');
   if (!video) return;
   if (video.requestFullscreen) {
-    video.requestFullscreen().catch(() => {});
+    video.requestFullscreen().catch(() => setExpandedVideo(video));
   } else if (video.webkitEnterFullscreen) {
-    video.webkitEnterFullscreen();
+    try { video.webkitEnterFullscreen(); } catch (_) { setExpandedVideo(video); }
   } else {
-    video.classList.toggle('is-expanded');
+    setExpandedVideo(video);
   }
+}
+
+function setExpandedVideo(video) {
+  video.classList.toggle('is-expanded');
+  if (video.classList.contains('is-expanded')) video.play().catch(() => {});
 }
 
 $('closePreview').addEventListener('click', closePreview);
