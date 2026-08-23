@@ -74,6 +74,15 @@ body{
 .mine .next span{font-size:9px;color:var(--mist);letter-spacing:.04em;text-transform:uppercase}
 
 /* ── экран «Свой пост» ── */
+/* сетка слотов внутри карточки — компактнее, чем на отдельном экране */
+.step .days{margin-bottom:8px}
+.step .day{padding:7px 3px;font-size:11px;border-radius:11px}
+.step .grid{gap:6px}
+.step .slot{padding:8px 8px 7px;border-radius:12px}
+.step .slot-time{font-size:13px}
+.step .slot-state{font-size:9px;margin-top:2px}
+.step .slot-dot{top:8px;right:8px;width:5px;height:5px}
+.step .field{margin-top:10px}
 .own-label{display:flex;align-items:baseline;gap:8px;margin:0 0 9px}
 .own-label b{font-family:'Unbounded',sans-serif;font-weight:600;font-size:12px;letter-spacing:.02em}
 .own-label span{font-size:11px;color:var(--mist)}
@@ -494,11 +503,8 @@ function renderInbox() {
       </div>
       <div class="step" id="lat-${p.id}" hidden>
         <div class="step-q">Когда опубликовать?</div>
-        <div class="chips">
-          <button class="chip chip-mono" data-when="${p.id}" data-value="+2ч">+2ч</button>
-          <button class="chip chip-mono" data-when="${p.id}" data-value="18:30">Сегодня 18:30</button>
-          <button class="chip chip-mono" data-when="${p.id}" data-value="завтра 09:00">Завтра 09:00</button>
-        </div>
+        <div class="days" data-latdays="${p.id}"></div>
+        <div class="grid" data-latgrid="${p.id}"></div>
         <input class="field" id="time-${p.id}" placeholder="или своё: 25.08 20:00">
         <div class="chips" style="margin-top:8px">
           <button class="chip" data-when="${p.id}" data-custom="1" data-signed="0">Отложить анонимно</button>
@@ -507,6 +513,52 @@ function renderInbox() {
       </div>
     </article>
   `}).join('');
+}
+
+/* ── выбор времени в карточке предложки ── */
+/* Та же сетка, что на экране «Свой пост». Выбранное окно хранится
+   отдельно для каждого поста, чтобы соседние карточки не мешали. */
+const latSel = {};
+
+function latDay(id) {
+  return (latSel[id] || {}).day || 0;
+}
+
+function latDaysHtml(id) {
+  return (state.days || []).map(d => `
+    <button class="day" aria-pressed="${d.index === latDay(id)}" data-latday="${id}:${d.index}">
+      ${esc(d.name)}<small>${esc(d.date)}</small>
+    </button>`).join('');
+}
+
+function latGridHtml(id) {
+  const day = (state.days || [])[latDay(id)];
+  if (!day) return '';
+  const chosenTime = (latSel[id] || {}).time;
+
+  return day.slots.map(slot => {
+    const past = slot.state === 'past';
+    const taken = slot.state === 'taken';
+    const chosen = chosenTime === slot.time;
+    const label = past ? 'прошло'
+                : chosen ? 'выбрано'
+                : taken ? 'занято #' + slot.postId
+                : 'свободно';
+    return `
+      <button class="slot ${taken ? 'is-taken' : ''}" data-latslot="${id}:${slot.time}"
+              aria-pressed="${chosen}" ${past ? 'disabled' : ''}>
+        ${past ? '' : '<span class="slot-dot"></span>'}
+        <span class="slot-time">${slot.time}</span>
+        <span class="slot-state">${label}</span>
+      </button>`;
+  }).join('');
+}
+
+function renderLat(id) {
+  const days = document.querySelector(`[data-latdays="${id}"]`);
+  const grid = document.querySelector(`[data-latgrid="${id}"]`);
+  if (days) days.innerHTML = latDaysHtml(id);
+  if (grid) grid.innerHTML = latGridHtml(id);
 }
 
 function renderQueue() {
@@ -688,6 +740,29 @@ document.addEventListener('click', (e) => {
     const wasOpen = !target.hidden;
     document.querySelectorAll('.step').forEach(s => s.hidden = true);
     target.hidden = wasOpen;
+    if (!target.hidden && t.dataset.open.startsWith('lat-')) {
+      renderLat(+t.dataset.open.slice(4));
+    }
+    return;
+  }
+
+  if (t.dataset.latday) {
+    const [id, index] = t.dataset.latday.split(':');
+    latSel[id] = { day: +index };
+    renderLat(id);
+    return;
+  }
+
+  if (t.dataset.latslot) {
+    // время содержит двоеточие, поэтому режем только по первому
+    const id = t.dataset.latslot.slice(0, t.dataset.latslot.indexOf(':'));
+    const time = t.dataset.latslot.slice(t.dataset.latslot.indexOf(':') + 1);
+    const current = latSel[id] || {};
+    // повторное нажатие снимает выбор
+    latSel[id] = current.time === time
+      ? { day: current.day || 0 }
+      : { day: current.day || 0, time };
+    renderLat(id);
     return;
   }
 
@@ -721,11 +796,15 @@ document.addEventListener('click', (e) => {
     let when = t.dataset.value;
     let signed = t.dataset.signed === '1';
     if (t.dataset.custom) {
-      when = document.getElementById('time-' + id).value.trim();
-      if (!when) { toast('Впишите время или выберите готовый вариант', true); return; }
-    } else {
-      // быстрые кнопки времени публикуют анонимно; для подписи есть нижние кнопки
-      signed = false;
+      const picked = latSel[id];
+      const day = (state.days || [])[(picked || {}).day || 0];
+      if (picked && picked.time && day) {
+        // «завтра 09:00» — сервер понимает такую запись
+        when = `${day.name} ${picked.time}`;
+      } else {
+        when = document.getElementById('time-' + id).value.trim();
+      }
+      if (!when) { toast('Выберите время в сетке или впишите своё', true); return; }
     }
     act('schedule', { postId: id, when, signed }, 'Запланировано');
   }

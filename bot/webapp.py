@@ -247,6 +247,8 @@ async def handle_state(request: web.Request) -> web.Response:
     queue = await db.get_scheduled_posts()
     published = await db.get_published_posts(limit=15)
     stats = await db.count_stats(day_start.astimezone(timezone.utc))
+    # сетка нужна и кнопке «Свой пост», и выбору времени в карточках
+    days = build_days(tz, now_local, queue)
 
     return web.json_response(
         {
@@ -254,7 +256,8 @@ async def handle_state(request: web.Request) -> web.Response:
             "inbox": [serialize(p, tz, now_local) for p in pending],
             "queue": [serialize(p, tz, now_local) for p in queue],
             "log": [serialize(p, tz, now_local) for p in published],
-            "nextSlot": next_free_slot(build_days(tz, now_local, queue)),
+            "days": days,
+            "nextSlot": next_free_slot(days),
             "timezone": config.timezone_name,
         }
     )
