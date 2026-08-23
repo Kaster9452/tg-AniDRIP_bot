@@ -422,6 +422,33 @@ function renderQueue() {
   `).join('') + '</div>';
 }
 
+function renderQueue() {
+  const panel = $('queue');
+  if (!state.queue.length) {
+    panel.innerHTML = emptyBlock('Очередь пуста.');
+    return;
+  }
+  panel.innerHTML = '<div class="rail">' + state.queue.map((p, i) => `
+    <div class="drop ${i === 0 ? 'is-next' : ''}">
+      <div class="drop-time">
+        ${esc(p.time)} · ${esc(p.day)}
+        ${i === 0 ? '<span class="badge-next">Следующий</span>' : ''}
+      </div>
+      <div class="mini">
+        <div class="mini-row">
+          <span class="mini-who">#${p.id} от ${esc(p.author)}</span>
+          <span class="mini-mode">${p.signed ? 'с подписью' : 'анонимно'}</span>
+        </div>
+        ${p.preview ? `<p class="mini-text">${esc(p.preview)}</p>`
+                    : `<p class="mini-text">${esc(p.media || 'без текста')}</p>`}
+        <div class="mini-acts">
+          <button class="link" data-publish="${p.id}" data-signed="${p.signed ? 1 : 0}">Опубликовать сейчас</button>
+          <button class="link" data-cancel="${p.id}">Снять</button>
+        </div>
+      </div>
+    </div>
+  `).join('') + '</div>';
+}
 
 function renderLog() {
   const panel = $('log');
