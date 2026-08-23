@@ -81,6 +81,21 @@ def initials_of(post) -> str:
     return source.lstrip("@")[:2].lower()
 
 
+def avatar_color(user_id: int) -> str:
+    """Генерируем стабильный цвет аватарки на основе user_id."""
+    colors = [
+        "#FF5C9E",  # rose
+        "#FFD166",  # citrus
+        "#5BE9B9",  # mint
+        "#7F8FFF",  # blue
+        "#FF8A65",  # orange
+        "#BA68C8",  # purple
+        "#4DB6AC",  # teal
+        "#E57373",  # red
+    ]
+    return colors[user_id % len(colors)]
+
+
 def preview_of(post, limit: int = 160) -> str:
     text = (post["content_html"] or "").strip()
     if not text:
@@ -108,6 +123,7 @@ def serialize(post, tz: ZoneInfo, now_local: datetime) -> dict:
         "id": post["id"],
         "author": author_of(post),
         "initials": initials_of(post),
+        "avatarColor": avatar_color(post["user_id"]),
         "preview": preview_of(post),
         "media": MEDIA_LABELS.get(post["content_type"]),
         "hasPhoto": post["content_type"] == "photo" and bool(post["file_id"]),
@@ -135,6 +151,7 @@ def serialize_person(row, tz: ZoneInfo, now_local: datetime) -> dict:
         "name": row["name"] or "",
         "handle": handle,
         "initials": (row["username"] or row["name"] or "?").lstrip("@")[:2].lower(),
+        "avatarColor": avatar_color(row["user_id"]),
         "total": row["total"],
         "published": row["published"],
         "pending": row["pending"],
