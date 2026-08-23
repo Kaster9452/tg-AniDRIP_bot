@@ -467,7 +467,7 @@ function renderInbox() {
     return `
     <article class="card" data-card="${p.id}">
       <div class="card-top">
-        <div class="ava-img" data-avatar="${p.userId}" style="background:${p.avatarColor || '#2A2838'}">${initials}</div>
+        <div class="ava-img" data-avatar="${p.userId}" style="background-color:${p.avatarColor || '#2A2838'}">${initials}</div>
         <div>
           <div class="who">${esc(p.author)}</div>
           <div class="when">${esc(p.submittedTime)} · ${esc(p.ago)}</div>
@@ -550,7 +550,7 @@ function renderLog() {
     <div class="done" ${p.hasPhoto ? `data-viewphoto="${p.id}" style="cursor:pointer"` : ''}>
       <span class="done-mark"></span>
       <div style="display:flex;align-items:center;gap:9px;margin-bottom:8px">
-        <div class="ava-img" data-avatar="${p.userId}" style="background:${p.avatarColor || '#2A2838'}">${initials}</div>
+        <div class="ava-img" data-avatar="${p.userId}" style="background-color:${p.avatarColor || '#2A2838'}">${initials}</div>
         <div>
           <div class="done-time">${esc(p.day)} ${esc(p.time)}</div>
           <div class="done-mode">${p.signed ? 'с подписью ' + esc(p.author) : 'анонимно'}</div>
@@ -588,6 +588,10 @@ function applyAvatars() {
     const url = avatarCache[id];
     if (url) {
       el.style.backgroundImage = `url("${url}")`;
+      // подстраховка: без этого картинка ляжет в натуральную величину
+      // и в кружок попадёт только её угол
+      el.style.backgroundSize = 'cover';
+      el.style.backgroundPosition = 'center';
       el.classList.add('has-photo');
     } else if (url === undefined) {
       // про этого человека ещё не спрашивали сервер
@@ -856,7 +860,7 @@ function personCard(p) {
   const initials = (p.handle || 'U').split(' ').map(n => n[0] || '').join('').toUpperCase().slice(0, 2);
   return `
     <div class="person ${p.banned ? 'is-banned' : ''}">
-      <div class="ava-img" data-avatar="${p.userId}" style="background:${p.avatarColor || '#2A2838'}">${initials}</div>
+      <div class="ava-img" data-avatar="${p.userId}" style="background-color:${p.avatarColor || '#2A2838'}">${initials}</div>
       <div class="person-main">
         <div class="person-who">
           ${esc(p.handle)}

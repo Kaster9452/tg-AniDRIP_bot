@@ -455,10 +455,12 @@ async def fetch_avatar(bot: Bot, user_id: int) -> str | None:
         if not photos.photos:
             _avatar_cache[user_id] = None
             return None
-        # В каждом наборе размеры идут от меньшего к большему. Аватарка
-        # показывается кружком 30px, поэтому берём самый маленький.
-        smallest = photos.photos[0][0]
-        file = await bot.get_file(smallest.file_id)
+        # Размеры идут от меньшего к большему. Самый маленький бывает
+        # совсем крошечным и мылит на экранах телефонов, поэтому берём
+        # первый размер от 160px, а если таких нет — самый большой.
+        sizes = photos.photos[0]
+        chosen = next((s for s in sizes if s.width >= 160), sizes[-1])
+        file = await bot.get_file(chosen.file_id)
         buffer = await bot.download_file(file.file_path)
     except Exception:
         logger.debug("Не удалось получить аватарку пользователя %s", user_id)
