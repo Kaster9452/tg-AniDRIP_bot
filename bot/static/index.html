@@ -95,11 +95,8 @@ body{
 .actions-sub{margin-top:7px}
 .btn-ghost{background:transparent;color:var(--mist);border:1px solid var(--haze);font-weight:600}
 .btn-ghost:hover{color:var(--bone)}
-.btn-danger{background:transparent;color:#C98BA5;border:1px solid rgba(255,92,158,.32);font-weight:600}
-.btn-danger:hover{color:var(--rose);border-color:var(--rose)}
 /* второе нажатие подтверждает: бан задевает живого человека,
    поэтому одним промахом его не выдать */
-.btn-danger.is-confirm{background:var(--rose);color:#1A0A12;border-color:var(--rose);font-weight:700}
 
 .step{margin-top:10px;border-top:1px dashed var(--haze);padding-top:11px}
 .step[hidden]{display:none}
@@ -293,14 +290,6 @@ function toast(text, bad = false) {
   el._t = setTimeout(() => el.classList.remove('show'), 2600);
 }
 
-function resetConfirms() {
-  document.querySelectorAll('.btn-danger.is-confirm').forEach(b => {
-    clearTimeout(b._revert);
-    b.classList.remove('is-confirm');
-    b.textContent = 'Забанить';
-  });
-}
-
 function haptic(type) {
   try { tg?.HapticFeedback?.notificationOccurred(type); } catch (_) {}
 }
@@ -352,7 +341,6 @@ function renderInbox() {
       </div>
       <div class="actions actions-sub">
         <button class="btn btn-ghost" data-reject="${p.id}">Отклонить</button>
-        <button class="btn btn-danger" data-ban="${p.id}">Забанить</button>
       </div>
       <div class="step" id="pub-${p.id}" hidden>
         <div class="step-q">Показывать автора в канале?</div>
@@ -484,19 +472,6 @@ document.addEventListener('click', (e) => {
     act('reject', { postId: +t.dataset.reject }, 'Отклонено');
     return;
   }
-
-  if (t.dataset.ban) {
-    if (t.classList.contains('is-confirm')) {
-      act('ban', { postId: +t.dataset.ban }, 'Заблокирован');
-    } else {
-      resetConfirms();
-      t.classList.add('is-confirm');
-      t.textContent = 'Точно забанить?';
-      t._revert = setTimeout(() => resetConfirms(), 4000);
-    }
-    return;
-  }
-  resetConfirms();
 
   if (t.dataset.banuser) {
     act('ban', { userId: +t.dataset.banuser }, 'Заблокирован', loadPeople);
