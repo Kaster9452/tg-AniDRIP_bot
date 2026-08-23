@@ -70,6 +70,7 @@ body{
 .ava{width:30px;height:30px;border-radius:9px;flex:none;display:grid;place-items:center;
   font-family:'Unbounded',sans-serif;font-weight:600;font-size:12px;
   background:linear-gradient(140deg,#3A2A45,#241F30);color:var(--rose)}
+.ava-img{width:30px;height:30px;border-radius:9px;flex:none;object-fit:cover;background:#2A2838}
 .who{font-size:13px;font-weight:600;line-height:1.2}
 .when{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--mist)}
 .tag{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--mist);
@@ -347,7 +348,7 @@ function renderInbox() {
   panel.innerHTML = state.inbox.map(p => `
     <article class="card" data-card="${p.id}">
       <div class="card-top">
-        <div class="ava">${esc(p.initials)}</div>
+        <img class="ava-img" src="" alt="" style="background:${p.avatarColor || '#2A2838'}">
         <div>
           <div class="who">${esc(p.author)}</div>
           <div class="when">${esc(p.submittedTime)} · ${esc(p.ago)}</div>
@@ -567,7 +568,7 @@ let searchTimer = null;
 function personCard(p) {
   return `
     <div class="person ${p.banned ? 'is-banned' : ''}">
-      <div class="ava">${esc(p.initials)}</div>
+      <img class="ava-img" src="" alt="" style="background:${p.avatarColor || '#2A2838'}">
       <div class="person-main">
         <div class="person-who">
           ${esc(p.handle)}
@@ -605,6 +606,14 @@ async function loadPeople() {
       return;
     }
     list.innerHTML = data.people.map(personCard).join('');
+    
+    // Применяем цвета аватарок для людей
+    data.people.forEach(p => {
+      if (p.avatarColor) {
+        const imgs = document.querySelectorAll(`img[data-avatar="p${p.userId}"]`);
+        imgs.forEach(img => img.style.background = p.avatarColor);
+      }
+    });
   } catch (err) {
     list.innerHTML = emptyBlock(err.message);
   }
