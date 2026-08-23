@@ -16,6 +16,7 @@ class Config:
     timezone: ZoneInfo
     timezone_name: str
     webapp_url: str
+    webapp_short_name: str
     port: int
 
 
@@ -57,6 +58,11 @@ def load_config() -> Config:
     # Mini App. Telegram требует именно https.
     webapp_url = os.getenv("WEBAPP_URL", "").rstrip("/")
 
+    # Короткое имя Mini App из BotFather. Нужно только для запуска
+    # панели из группы: обычные кнопки Mini App Telegram там не
+    # разрешает, а прямая ссылка t.me/бот/имя работает везде.
+    webapp_short_name = os.getenv("WEBAPP_SHORT_NAME", "").strip()
+
     # Render сам подставляет PORT для Web Service; для локального запуска
     # берём значение по умолчанию.
     port = int(os.getenv("PORT", "10000"))
@@ -69,5 +75,6 @@ def load_config() -> Config:
         timezone=tz,
         timezone_name=tz_name,
         webapp_url=webapp_url,
+        webapp_short_name=webapp_short_name,
         port=port,
     )

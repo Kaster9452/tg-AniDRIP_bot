@@ -258,35 +258,65 @@ async def cmd_post_signed(
 
 @router.message(Command("panel"))
 async def cmd_panel(
-    message: Message, bot: Bot, webapp_url: str, admin_group_id: int
+    message: Message,
+    bot: Bot,
+    webapp_url: str,
+    webapp_short_name: str,
+    bot_username: str,
+    admin_group_id: int,
 ) -> None:
-    """Кнопка запуска Mini App. Telegram разрешает такие кнопки только
-    в личной переписке с ботом, в группах они не работают."""
-    if message.chat.type != "private":
-        await message.reply("Откройте панель в личном чате со мной: команда /panel")
+    """Открывает панель модерации.
+
+    В личке используется обычная кнопка Mini App. В группах Telegram такие
+    кнопки запрещает, поэтому там даём прямую ссылку вида
+    t.me/бот/имя_приложения — она открывает то же самое приложение
+    и работает в любом чате.
+    """
+    if not await is_group_admin(bot, admin_group_id, message.from_user.id):
+        await message.reply("Панель доступна только администраторам группы.")
         return
 
     if not webapp_url:
-        await message.answer(
+        await message.reply(
             "Панель не настроена: не задан адрес WEBAPP_URL в переменных окружения."
         )
         return
 
-    if not await is_group_admin(bot, admin_group_id, message.from_user.id):
-        await message.answer("Панель доступна только администраторам группы.")
+    if message.chat.type == "private":
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="🗂 Открыть панель",
+                        web_app=WebAppInfo(url=f"{webapp_url}/app"),
+                    )
+                ]
+            ]
+        )
+        await message.answer(
+            "Панель модерации: очередь, публикация и расписание в одном окне.",
+            reply_markup=keyboard,
+        )
         return
 
+    # группа или супергруппа
+    if not webapp_short_name or not bot_username:
+        await message.reply(
+            "Чтобы открывать панель прямо из группы, нужно один раз "
+            "зарегистрировать приложение:\n\n"
+            "1. Напишите @BotFather команду /newapp и выберите этого бота\n"
+            f"2. Укажите адрес <code>{webapp_url}/app</code>\n"
+            "3. Придумайте короткое имя, например <code>panel</code>\n"
+            "4. Добавьте его в переменную <code>WEBAPP_SHORT_NAME</code> на Render\n\n"
+            "А пока панель открывается командой /panel в личке со мной."
+        )
+        return
+
+    link = f"https://t.me/{bot_username}/{webapp_short_name}"
     keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="🗂 Открыть панель",
-                    web_app=WebAppInfo(url=f"{webapp_url}/app"),
-                )
-            ]
-        ]
+        inline_keyboard=[[InlineKeyboardButton(text="🗂 Открыть панель", url=link)]]
     )
-    await message.answer(
+    await message.reply(
         "Панель модерации: очередь, публикация и расписание в одном окне.",
         reply_markup=keyboard,
     )

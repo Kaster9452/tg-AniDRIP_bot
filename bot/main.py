@@ -45,12 +45,18 @@ async def main() -> None:
             "Необработанная ошибка: %s", event.exception, exc_info=event.exception
         )
 
+    # Имя бота нужно для прямой ссылки на панель вида t.me/бот/имя.
+    me = await bot.get_me()
+    logging.info("Бот: @%s (id=%s)", me.username, me.id)
+
     # Эти значения aiogram передаст в обработчики как аргументы
     context = {
         "admin_group_id": config.admin_group_id,
         "channel_id": config.channel_id,
         "tz": config.timezone,
         "webapp_url": config.webapp_url,
+        "webapp_short_name": config.webapp_short_name,
+        "bot_username": me.username or "",
     }
 
     await bot.delete_webhook(drop_pending_updates=True)
