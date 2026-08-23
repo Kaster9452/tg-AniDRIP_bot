@@ -46,6 +46,10 @@ CREATE INDEX IF NOT EXISTS idx_posts_due ON posts (status, scheduled_at);
 -- на Render, а CREATE TABLE IF NOT EXISTS новую колонку в неё не добавит.
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS file_id TEXT;
 
+-- Пост, написанный самим админом в панели, а не присланный пользователем.
+-- Нужно, чтобы такие посты не попадали в список «Люди» и были подписаны иначе.
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS is_own BOOLEAN NOT NULL DEFAULT FALSE;
+
 CREATE TABLE IF NOT EXISTS banned_users (
     user_id   BIGINT PRIMARY KEY,
     username  TEXT,
@@ -155,6 +159,36 @@ async def create_post(
             content_type,
             content_html,
             file_id,
+        )
+
+
+async def create_own_post(
+    user_id: int,
+    author_name: str | None,
+    author_username: str | None,
+    content_html: str,
+    scheduled_at: datetime,
+) -> int:
+    """Пост, который админ написал сам в панели, сразу встаёт в очередь.
+
+    user_message_id = 0: исходного сообщения в личке не существует, а при
+    публикации текстового поста оно и не нужно — берётся content_html.
+    """
+    pool = _require_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetchval(
+            """
+            INSERT INTO posts (user_id, user_message_id, author_name, author_username,
+                               content_type, content_html, status, scheduled_at,
+                               with_attribution, is_own)
+            VALUES ($1, 0, $2, $3, 'text', $4, 'scheduled', $5, FALSE, TRUE)
+            RETURNING id
+            """,
+            user_id,
+            author_name,
+            author_username,
+            content_html,
+            scheduled_at,
         )
 
 
@@ -428,7 +462,8 @@ async def search_people(
                 b.reason                                        AS ban_reason
             FROM posts p
             LEFT JOIN banned_users b ON b.user_id = p.user_id
-            WHERE ($1::text IS NULL
+            WHERE NOT p.is_own
+              AND ($1::text IS NULL
                    OR p.author_username ILIKE $1
                    OR p.author_name ILIKE $1
                    OR p.user_id::text = $2)

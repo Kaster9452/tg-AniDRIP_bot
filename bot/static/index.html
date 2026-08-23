@@ -55,6 +55,82 @@ body{
 .stat.is-queued b{color:var(--citrus)}
 .stat.is-done b{color:var(--mint)}
 
+/* ── строка «Свой пост» ── */
+.mine{display:flex;align-items:center;gap:11px;width:calc(100% - 36px);margin:0 18px 16px;
+  cursor:pointer;text-align:left;border-radius:15px;padding:13px 14px;
+  font-family:'Manrope',sans-serif;color:var(--bone);
+  background:var(--slate);border:1px solid var(--haze);border-left:3px solid var(--rose);
+  transition:border-color .18s ease,transform .12s ease}
+.mine:hover{border-color:var(--rose);transform:translateY(-1px)}
+.mine:focus-visible{outline:2px solid var(--rose);outline-offset:2px}
+.mine b{font-weight:600;font-size:13px;display:block;line-height:1.25}
+.mine small{font-size:11px;color:var(--mist)}
+.mine .plus{width:30px;height:30px;flex:none;border-radius:10px;display:grid;place-items:center;
+  font-family:'Unbounded',sans-serif;font-weight:600;font-size:16px;
+  background:rgba(255,92,158,.16);color:var(--rose)}
+.mine .next{margin-left:auto;flex:none;text-align:right}
+.mine .next em{display:block;font-style:normal;font-family:'JetBrains Mono',monospace;
+  font-size:15px;font-weight:600;color:var(--mint);line-height:1.1}
+.mine .next span{font-size:9px;color:var(--mist);letter-spacing:.04em;text-transform:uppercase}
+
+/* ── экран «Свой пост» ── */
+.own-label{display:flex;align-items:baseline;gap:8px;margin:0 0 9px}
+.own-label b{font-family:'Unbounded',sans-serif;font-weight:600;font-size:12px;letter-spacing:.02em}
+.own-label span{font-size:11px;color:var(--mist)}
+.editor{background:var(--slate);border:1px solid var(--haze);border-radius:18px;padding:14px;
+  transition:border-color .18s ease}
+.editor:focus-within{border-color:var(--rose)}
+.editor textarea{width:100%;min-height:104px;resize:vertical;border:0;outline:0;background:transparent;
+  color:var(--bone);font-family:'Manrope',sans-serif;font-size:14px;line-height:1.5}
+.editor textarea::placeholder{color:#5E5975}
+.editor-foot{display:flex;align-items:center;margin-top:12px;padding-top:12px;
+  border-top:1px solid var(--haze)}
+.count{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--mist)}
+.count.over{color:var(--rose)}
+
+.days{display:flex;gap:7px;margin-bottom:13px}
+.day{flex:1;cursor:pointer;background:var(--slate);border:1px solid var(--haze);color:var(--mist);
+  border-radius:13px;padding:9px 4px;font-family:'Manrope',sans-serif;font-weight:600;font-size:12px;
+  display:grid;gap:2px;justify-items:center;transition:border-color .18s ease,color .18s ease}
+.day small{font-family:'JetBrains Mono',monospace;font-size:9px;opacity:.75}
+.day:hover{border-color:var(--mist);color:var(--bone)}
+.day:focus-visible{outline:2px solid var(--rose);outline-offset:2px}
+.day[aria-pressed="true"]{border-color:var(--rose);color:var(--bone);background:#241C2C}
+
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.slot{position:relative;cursor:pointer;text-align:left;
+  background:var(--slate);border:1px solid var(--haze);color:var(--bone);
+  border-radius:15px;padding:11px 11px 10px;font-family:'JetBrains Mono',monospace;
+  transition:border-color .18s ease,background .18s ease,transform .12s ease}
+.slot:hover:not(:disabled){border-color:var(--mist);transform:translateY(-1px)}
+.slot:focus-visible{outline:2px solid var(--rose);outline-offset:2px}
+.slot-time{font-size:15px;font-weight:600;letter-spacing:-.02em;display:block}
+.slot-state{display:block;margin-top:3px;font-family:'Manrope',sans-serif;
+  font-size:10px;font-weight:600;color:var(--mist);line-height:1.3}
+.slot-dot{position:absolute;top:11px;right:11px;width:6px;height:6px;border-radius:50%;
+  background:var(--mint)}
+.slot.is-taken{background:#241F14;border-color:#4A3D1C}
+.slot.is-taken .slot-state{color:var(--citrus)}
+.slot.is-taken .slot-dot{background:var(--citrus)}
+.slot:disabled{cursor:not-allowed;opacity:.4;background:var(--ink)}
+.slot:disabled .slot-dot{display:none}
+.slot[aria-pressed="true"]{background:#2E1B29;border-color:var(--rose)}
+.slot[aria-pressed="true"] .slot-state{color:var(--rose)}
+.slot[aria-pressed="true"] .slot-dot{background:var(--rose);box-shadow:0 0 0 4px rgba(255,92,158,.18)}
+
+.own-hint{margin-top:11px;font-size:11px;line-height:1.45;color:var(--mist)}
+.own-hint b{color:var(--citrus);font-weight:600}
+
+.own-foot{padding:14px 18px calc(14px + env(safe-area-inset-bottom));
+  max-width:520px;margin:0 auto;width:100%;
+  background:var(--ink);border-top:1px solid var(--haze)}
+.go{width:100%;cursor:pointer;border:0;border-radius:15px;padding:15px;
+  background:var(--rose);color:#1A0A12;
+  font-family:'Unbounded',sans-serif;font-weight:600;font-size:14px;letter-spacing:-.01em;
+  transition:opacity .18s ease}
+.go:disabled{cursor:not-allowed;background:var(--haze);color:var(--mist)}
+.go:focus-visible{outline:2px solid var(--bone);outline-offset:3px}
+
 .tabs{display:flex;gap:4px;margin:0 18px 16px;background:var(--slate);border:1px solid var(--haze);border-radius:14px;padding:4px}
 .tab{flex:1;border:0;background:transparent;color:var(--mist);font-family:'Manrope',sans-serif;
   font-weight:600;font-size:13px;padding:9px 4px;border-radius:10px;cursor:pointer;
@@ -249,6 +325,15 @@ body{
     <div class="stat is-done"><b id="statDone">—</b><span>за сегодня</span></div>
   </div>
 
+  <button class="mine" id="openOwn">
+    <span class="plus">＋</span>
+    <span>
+      <b>Свой пост</b>
+      <small>ближайший свободный слот</small>
+    </span>
+    <span class="next"><em id="nextSlotTime">—</em><span id="nextSlotDay">&nbsp;</span></span>
+  </button>
+
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" aria-selected="true" data-panel="inbox">Новые</button>
     <button class="tab" role="tab" aria-selected="false" data-panel="queue">Очередь</button>
@@ -261,6 +346,33 @@ body{
     <section class="panel" id="log" hidden></section>
   </div>
 </div>
+
+<section class="sheet" id="ownSheet" hidden aria-label="Свой пост">
+  <div class="sheet-head">
+    <button class="back" id="closeOwn" title="Назад">←</button>
+    <div>
+      <div class="eyebrow">В канал без подписи</div>
+      <h2 class="sheet-title">Свой пост</h2>
+    </div>
+  </div>
+  <div class="sheet-body">
+    <div class="own-label"><b>Что публикуем</b><span>обычный текст</span></div>
+    <div class="editor">
+      <textarea id="ownText" placeholder="Текст поста. Можно вставить ссылку — Telegram сам сделает превью."></textarea>
+      <div class="editor-foot">
+        <span class="count"><span id="ownCount">0</span> / 4096</span>
+      </div>
+    </div>
+
+    <div class="own-label" style="margin-top:18px"><b>Когда</b><span>сетка канала, каждые два часа</span></div>
+    <div class="days" id="ownDays" role="group" aria-label="День публикации"></div>
+    <div class="grid" id="ownGrid" role="group" aria-label="Время публикации"></div>
+    <p class="own-hint"><b>Жёлтым</b> — слоты, где уже стоит пост из очереди. Выбрать можно и их: посты уйдут подряд.</p>
+  </div>
+  <div class="own-foot">
+    <button class="go" id="ownGo" disabled>Выберите время</button>
+  </div>
+</section>
 
 <section class="sheet" id="peopleSheet" hidden aria-label="Люди">
   <div class="sheet-head">
@@ -411,7 +523,7 @@ function renderQueue() {
       </div>
       <div class="mini" ${p.hasPhoto ? `data-viewphoto="${p.id}" style="cursor:pointer"` : ''}>
         <div class="mini-row">
-          <span class="mini-who">#${p.id} от ${esc(p.author)}</span>
+          <span class="mini-who">#${p.id} ${p.own ? '· свой пост' : 'от ' + esc(p.author)}</span>
           <span class="mini-mode">${p.signed ? 'с подписью' : 'анонимно'}</span>
         </div>
         ${p.hasPhoto ? `<div class="media media-photo" data-viewphoto="${p.id}"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}"></div>` : ''}
@@ -450,7 +562,14 @@ function renderLog() {
   `}).join('');
 }
 
+function renderNextSlot() {
+  const slot = state.nextSlot;
+  $('nextSlotTime').textContent = slot ? slot.time : '—';
+  $('nextSlotDay').textContent = slot ? slot.dayName : 'нет окон';
+}
+
 function renderAll() {
+  renderNextSlot();
   $('statNew').textContent = state.stats.pending ?? 0;
   $('statQueued').textContent = state.stats.scheduled ?? 0;
   $('statDone').textContent = state.stats.today ?? 0;
@@ -531,6 +650,7 @@ function scheduleAutoRefresh() {
     const typing = document.activeElement && document.activeElement.classList.contains('field');
     const stepOpen = document.querySelector('.step:not([hidden])');
     if (busy || typing || stepOpen || document.hidden) return;
+    if (!$('ownSheet').hidden || !$('peopleSheet').hidden) return;
     refresh();
   }, 4000);
 }
@@ -607,6 +727,127 @@ document.addEventListener('click', (e) => {
   }
 });
 
+/* ── экран «Свой пост» ── */
+let ownDays = [];
+let ownDay = 0;
+let ownSlot = null;
+
+function renderOwnDays() {
+  $('ownDays').innerHTML = ownDays.map(d => `
+    <button class="day" aria-pressed="${d.index === ownDay}" data-ownday="${d.index}">
+      ${esc(d.name)}<small>${esc(d.date)}</small>
+    </button>`).join('');
+}
+
+function renderOwnGrid() {
+  const day = ownDays[ownDay];
+  if (!day) { $('ownGrid').innerHTML = ''; return; }
+
+  $('ownGrid').innerHTML = day.slots.map(slot => {
+    const chosen = ownSlot === slot.time;
+    const past = slot.state === 'past';
+    const taken = slot.state === 'taken';
+    const label = past ? 'уже прошло'
+                : chosen ? 'выбрано'
+                : taken ? 'занято #' + slot.postId
+                : 'свободно';
+    return `
+      <button class="slot ${taken ? 'is-taken' : ''}" data-ownslot="${slot.time}"
+              aria-pressed="${chosen}" ${past ? 'disabled' : ''}>
+        ${past ? '' : '<span class="slot-dot"></span>'}
+        <span class="slot-time">${slot.time}</span>
+        <span class="slot-state">${label}</span>
+      </button>`;
+  }).join('');
+}
+
+function renderOwnFoot() {
+  const btn = $('ownGo');
+  const text = $('ownText').value.trim();
+  const day = ownDays[ownDay];
+  btn.disabled = !ownSlot || !text || busy;
+  btn.textContent = ownSlot && day
+    ? `Отложить на ${ownSlot}, ${day.name}`
+    : (!text ? 'Напишите текст' : 'Выберите время');
+}
+
+function renderOwn() {
+  renderOwnDays(); renderOwnGrid(); renderOwnFoot();
+}
+
+async function openOwn() {
+  $('ownSheet').hidden = false;
+  tg?.BackButton?.show();
+  $('ownGrid').innerHTML = '<div class="skeleton"></div>';
+  try {
+    const data = await api('slots');
+    ownDays = data.days || [];
+    // по умолчанию встаём на ближайшее свободное окно
+    if (data.nextSlot && ownSlot === null) {
+      ownDay = data.nextSlot.day;
+      ownSlot = data.nextSlot.time;
+    }
+    renderOwn();
+  } catch (err) {
+    $('ownGrid').innerHTML = emptyBlock(err.message);
+  }
+}
+
+function closeOwn() {
+  $('ownSheet').hidden = true;
+  tg?.BackButton?.hide();
+  refresh();
+}
+
+async function submitOwn() {
+  const text = $('ownText').value.trim();
+  if (!text || !ownSlot || busy) return;
+
+  busy = true;
+  renderOwnFoot();
+  try {
+    const res = await api('own', { text, day: ownDay, time: ownSlot });
+    haptic('success');
+    toast(res.message || 'Отложено');
+    $('ownText').value = '';
+    $('ownCount').textContent = '0';
+    ownSlot = null;
+    busy = false;
+    closeOwn();
+  } catch (err) {
+    busy = false;
+    haptic('error');
+    toast(err.message, true);
+    renderOwnFoot();
+  }
+}
+
+$('openOwn').addEventListener('click', openOwn);
+$('closeOwn').addEventListener('click', closeOwn);
+$('ownGo').addEventListener('click', submitOwn);
+
+$('ownText').addEventListener('input', (e) => {
+  const el = $('ownCount');
+  el.textContent = e.target.value.length;
+  el.parentElement.classList.toggle('over', e.target.value.length > 4096);
+  renderOwnFoot();
+});
+
+$('ownSheet').addEventListener('click', (e) => {
+  const dayBtn = e.target.closest('[data-ownday]');
+  if (dayBtn) {
+    ownDay = +dayBtn.dataset.ownday;
+    ownSlot = null;
+    renderOwn();
+    return;
+  }
+  const slotBtn = e.target.closest('[data-ownslot]');
+  if (slotBtn && !slotBtn.disabled) {
+    ownSlot = slotBtn.dataset.ownslot === ownSlot ? null : slotBtn.dataset.ownslot;
+    renderOwn();
+  }
+});
+
 /* ── экран людей ── */
 let peopleFilter = 'all';
 let searchTimer = null;
@@ -673,7 +914,10 @@ function closePeople() {
   refresh();
 }
 $('closePeople').addEventListener('click', closePeople);
-tg?.BackButton?.onClick(closePeople);
+tg?.BackButton?.onClick(() => {
+  if (!$('ownSheet').hidden) closeOwn();
+  else closePeople();
+});
 
 $('peopleSearch').addEventListener('input', () => {
   clearTimeout(searchTimer);

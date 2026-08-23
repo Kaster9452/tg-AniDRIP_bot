@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import base64
+import html
 import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -30,6 +31,13 @@ logger = logging.getLogger(__name__)
 STATIC_DIR = Path(__file__).parent / "static"
 
 WEEKDAYS = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"]
+
+# Сетка эфира: слоты каждые два часа, по нечётным часам.
+SLOT_HOURS = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23]
+# Порядок показа в панели — сверху поздние, как просили.
+SLOT_ORDER = list(reversed(SLOT_HOURS))
+DAY_NAMES = ["сегодня", "завтра", "послезавтра"]
+OWN_TEXT_LIMIT = 4096
 
 
 class ApiError(Exception):
@@ -68,6 +76,70 @@ def day_label(moment: datetime, now: datetime) -> str:
     if target == today - timedelta(days=1):
         return "вчера"
     return moment.strftime("%d.%m")
+
+
+def slot_of(moment: datetime) -> tuple:
+    """К какому слоту относится момент времени.
+
+    Слоты нечётные и идут через два часа, значит пост в 20:40 попадает
+    в слот 19:00, а всё, что до часу ночи, — в 23:00 прошлого дня.
+    """
+    hour = moment.hour if moment.hour % 2 == 1 else moment.hour - 1
+    day = moment.date()
+    if hour < 0:
+        hour, day = 23, day - timedelta(days=1)
+    return day, hour
+
+
+def build_days(tz: ZoneInfo, now_local: datetime, scheduled: list) -> list[dict]:
+    """Три дня по двенадцать слотов: что занято, что прошло, что свободно."""
+    taken: dict[tuple, int] = {}
+    for post in scheduled:
+        if not post["scheduled_at"]:
+            continue
+        key = slot_of(post["scheduled_at"].astimezone(tz))
+        # если в слоте уже что-то есть, показываем самый ранний пост
+        taken.setdefault(key, post["id"])
+
+    days = []
+    for offset, name in enumerate(DAY_NAMES):
+        date = (now_local + timedelta(days=offset)).date()
+        slots = []
+        for hour in SLOT_ORDER:
+            start = datetime(date.year, date.month, date.day, hour, tzinfo=tz)
+            post_id = taken.get((date, hour))
+            if start <= now_local:
+                state = "past"
+            elif post_id:
+                state = "taken"
+            else:
+                state = "free"
+            slots.append(
+                {"time": f"{hour:02d}:00", "state": state, "postId": post_id}
+            )
+        days.append(
+            {
+                "index": offset,
+                "name": name,
+                "date": date.strftime("%d.%m"),
+                "slots": slots,
+            }
+        )
+    return days
+
+
+def next_free_slot(days: list[dict]) -> dict | None:
+    """Ближайшее свободное окно — его показывает кнопка «Свой пост»."""
+    for day in days:
+        # внутри дня слоты идут от поздних к ранним, а нам нужен ближайший
+        for slot in reversed(day["slots"]):
+            if slot["state"] == "free":
+                return {
+                    "time": slot["time"],
+                    "day": day["index"],
+                    "dayName": day["name"],
+                }
+    return None
 
 
 def author_of(post) -> str:
@@ -132,6 +204,7 @@ def serialize(post, tz: ZoneInfo, now_local: datetime) -> dict:
         "submittedTime": created.strftime("%H:%M"),
         "submittedDay": day_label(created, now_local),
         "signed": bool(post["with_attribution"]),
+        "own": bool(post["is_own"]),
     }
     if post["scheduled_at"]:
         moment = post["scheduled_at"].astimezone(tz)
@@ -245,6 +318,7 @@ async def handle_state(request: web.Request) -> web.Response:
             "inbox": [serialize(p, tz, now_local) for p in pending],
             "queue": [serialize(p, tz, now_local) for p in queue],
             "log": [serialize(p, tz, now_local) for p in published],
+            "nextSlot": next_free_slot(build_days(tz, now_local, queue)),
             "timezone": config.timezone_name,
         }
     )
@@ -491,6 +565,90 @@ async def handle_unban(request: web.Request) -> web.Response:
     return web.json_response({"ok": True, "message": "Блокировка снята"})
 
 
+async def handle_slots(request: web.Request) -> web.Response:
+    """Сетка на три дня для экрана «Свой пост»."""
+    payload = await read_payload(request)
+    await authorize(request, payload)
+
+    config: Config = request.app["config"]
+    tz = config.timezone
+    now_local = datetime.now(tz)
+
+    days = build_days(tz, now_local, await db.get_scheduled_posts())
+    return web.json_response(
+        {"days": days, "nextSlot": next_free_slot(days), "timezone": config.timezone_name}
+    )
+
+
+async def handle_own(request: web.Request) -> web.Response:
+    """Админ пишет пост сам и ставит его в выбранный слот."""
+    payload = await read_payload(request)
+    admin = await authorize(request, payload)
+
+    config: Config = request.app["config"]
+    bot: Bot = request.app["bot"]
+    tz = config.timezone
+    now_local = datetime.now(tz)
+
+    text = str(payload.get("text", "")).strip()
+    if not text:
+        raise ApiError("Напишите текст поста")
+    if len(text) > OWN_TEXT_LIMIT:
+        raise ApiError(f"Слишком длинный текст: максимум {OWN_TEXT_LIMIT} символов")
+
+    try:
+        day_offset = int(payload.get("day", 0))
+    except (TypeError, ValueError) as exc:
+        raise ApiError("Не выбран день") from exc
+    if day_offset not in range(len(DAY_NAMES)):
+        raise ApiError("Не выбран день")
+
+    raw_time = str(payload.get("time", ""))
+    try:
+        hour = int(raw_time.split(":")[0])
+    except (ValueError, IndexError) as exc:
+        raise ApiError("Не выбрано время") from exc
+    if hour not in SLOT_HOURS:
+        raise ApiError("Такого слота нет в сетке")
+
+    date = (now_local + timedelta(days=day_offset)).date()
+    when = datetime(date.year, date.month, date.day, hour, tzinfo=tz)
+    if when <= now_local:
+        raise ApiError("Это время уже прошло")
+
+    # Бот публикует с parse_mode=HTML, поэтому текст админа экранируем:
+    # иначе любой символ < свалит отправку.
+    content_html = html.escape(text)
+
+    post_id = await db.create_own_post(
+        user_id=int(admin["id"]),
+        author_name=admin.get("first_name"),
+        author_username=admin.get("username"),
+        content_html=content_html,
+        scheduled_at=when.astimezone(timezone.utc),
+    )
+
+    await notify_group(
+        bot,
+        config,
+        f"🕓 Свой пост #{post_id} поставлен на {format_when(when, tz)} "
+        f"({author_of_admin(admin)}).",
+    )
+
+    return web.json_response(
+        {
+            "ok": True,
+            "message": f"Пост #{post_id} встанет в {hour:02d}:00, {DAY_NAMES[day_offset]}",
+        }
+    )
+
+
+def author_of_admin(admin: dict) -> str:
+    if admin.get("username"):
+        return f"@{admin['username']}"
+    return admin.get("first_name") or f"ID {admin.get('id')}"
+
+
 # --- синхронизация с кнопками в группе --------------------------------------
 
 
@@ -558,6 +716,8 @@ def build_app(bot: Bot, config: Config) -> web.Application:
     app.router.add_post("/api/state", handle_state)
     app.router.add_post("/api/photo", handle_photo)
     app.router.add_post("/api/avatars", handle_avatars)
+    app.router.add_post("/api/slots", handle_slots)
+    app.router.add_post("/api/own", handle_own)
     app.router.add_post("/api/publish", handle_publish)
     app.router.add_post("/api/schedule", handle_schedule)
     app.router.add_post("/api/cancel", handle_cancel)
