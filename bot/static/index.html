@@ -418,27 +418,6 @@ function renderQueue() {
   `).join('') + '</div>';
 }
 
-  panel.innerHTML = '<div class="rail">' + state.queue.map((p, i) => `
-    <div class="drop ${i === 0 ? 'is-next' : ''}">
-      <div class="drop-time">
-        ${esc(p.time)} · ${esc(p.day)}
-        ${i === 0 ? '<span class="badge-next">Следующий</span>' : ''}
-      </div>
-      <div class="mini">
-        <div class="mini-row">
-          <span class="mini-who">#${p.id} от ${esc(p.author)}</span>
-          <span class="mini-mode">${p.signed ? 'с подписью' : 'анонимно'}</span>
-        </div>
-        ${p.preview ? `<p class="mini-text">${esc(p.preview)}</p>`
-                    : `<p class="mini-text">${esc(p.media || 'без текста')}</p>`}
-        <div class="mini-acts">
-          <button class="link" data-publish="${p.id}" data-signed="${p.signed ? 1 : 0}">Опубликовать сейчас</button>
-          <button class="link" data-cancel="${p.id}">Снять</button>
-        </div>
-      </div>
-    </div>
-  `).join('') + '</div>';
-}
 
 function renderLog() {
   const panel = $('log');
@@ -447,10 +426,11 @@ function renderLog() {
     return;
   }
   panel.innerHTML = state.log.map(p => `
-    <div class="done">
+    <div class="done" ${p.hasPhoto ? `data-viewphoto="${p.id}" style="cursor:pointer"` : ''}>
       <span class="done-mark"></span>
       <div>
         <div class="done-time">${esc(p.day)} ${esc(p.time)}</div>
+        ${p.hasPhoto ? `<div class="media media-photo" data-viewphoto="${p.id}" style="height:60px;margin-bottom:6px"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}"></div>` : ''}
         <p class="done-text">#${p.id} — ${esc(p.preview || p.media || 'без текста')}</p>
         <div class="done-mode">${p.signed ? 'с подписью ' + esc(p.author) : 'анонимно'}</div>
       </div>
@@ -467,13 +447,17 @@ function renderAll() {
 }
 
 async function loadMissingPhotos() {
-  const ids = state.inbox.filter(p => p.hasPhoto && !photoCache[p.id]).map(p => p.id);
+  const ids = [
+    ...state.inbox.filter(p => p.hasPhoto && !photoCache[p.id]).map(p => p.id),
+    ...state.queue.filter(p => p.hasPhoto && !photoCache[p.id]).map(p => p.id),
+    ...state.log.filter(p => p.hasPhoto && !photoCache[p.id]).map(p => p.id)
+  ];
   for (const id of ids) {
     try {
       const res = await api('photo', { postId: id });
       photoCache[id] = res.dataUrl;
-      const img = document.querySelector(`img[data-photo="${id}"]`);
-      if (img) img.src = res.dataUrl;
+      const imgs = document.querySelectorAll(`img[data-photo="${id}"]`);
+      imgs.forEach(img => img.src = res.dataUrl);
     } catch (_) {
       // подпись «фото» всё равно останется видна, ошибку не показываем
     }
@@ -700,8 +684,8 @@ document.addEventListener('click', (e) => {
     if (!photoCache[postId]) {
       api('photo', { postId }).then(res => {
         photoCache[postId] = res.dataUrl;
-        const img = document.querySelector(`img[data-photo="${postId}"]`);
-        if (img) img.src = res.dataUrl;
+        const imgs = document.querySelectorAll(`img[data-photo="${postId}"]`);
+        imgs.forEach(img => img.src = res.dataUrl);
         openPhotoModal(postId);
       }).catch(() => toast('Не удалось загрузить фото', true));
     } else {
