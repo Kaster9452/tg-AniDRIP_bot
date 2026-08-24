@@ -825,6 +825,7 @@ function renderQueue() {
               <button class="chip" data-attach-edit="${p.id}">📎 Добавить фото/видео</button>
             </div>
             <p class="own-hint" style="margin-top:6px">Форматирование (жирный, ссылки) при сохранении не сохранится — текст станет обычным.</p>
+            <input class="field" id="edittime-${p.id}" style="margin-top:8px" placeholder="новое время: 25.08 20:00, +2ч, завтра 09:00 (пусто — без изменений)">
             <div class="chips" style="margin-top:8px">
               <button class="chip" data-save-text="${p.id}">Сохранить</button>
             </div>
@@ -1102,12 +1103,14 @@ document.addEventListener('click', (e) => {
   if (t.dataset.saveText) {
     const id = +t.dataset.saveText;
     const text = document.getElementById(`edittext-${id}`).value;
+    const when = document.getElementById(`edittime-${id}`).value.trim();
     const st = getEditState(id);
     const keepIndexes = [];
     for (let i = 0; i < editTotalFor(id); i++) if (!st.removed.has(i)) keepIndexes.push(i);
     act('edit-post', {
       postId: id,
       text,
+      when,
       keepIndexes,
       newFiles: st.newFiles.map(f => ({ dataUrl: f.dataUrl, type: f.type }))
     }, 'Изменения сохранены', () => {

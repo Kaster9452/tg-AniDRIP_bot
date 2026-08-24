@@ -477,12 +477,13 @@ async def handle_cancel(request: web.Request) -> web.Response:
 
 
 async def handle_edit_post(request: web.Request) -> web.Response:
-    """Меняет текст и состав файлов уже отложенного поста без пересылки заново."""
+    """Меняет текст, состав файлов и, при желании, время уже отложенного поста."""
     payload = await read_payload(request)
-    await authorize(request, payload)
+    admin = await authorize(request, payload)
 
     bot: Bot = request.app["bot"]
     config: Config = request.app["config"]
+    tz = config.timezone
 
     post = await load_post(post_id_from(payload))
     if post["status"] != "scheduled":
@@ -519,6 +520,16 @@ async def handle_edit_post(request: web.Request) -> web.Response:
     if len(text) > limit:
         raise ApiError(f"Слишком длинный текст: максимум {limit} символов")
 
+    raw_when = str(payload.get("when", "")).strip()
+    when = None
+    if raw_when:
+        try:
+            when = parse_when(raw_when, tz)
+        except TimeParseError as exc:
+            raise ApiError(str(exc)) from exc
+        if when <= datetime.now(tz):
+            raise ApiError("Это время уже прошло")
+
     content_html = html.escape(text)
 
     new_items: list[dict] = []
@@ -546,6 +557,13 @@ async def handle_edit_post(request: web.Request) -> web.Response:
     await db.update_post_media(
         post["id"], content_html, content_type, file_id, media_thumb_id, media_group
     )
+    if when is not None:
+        await db.mark_scheduled(
+            post["id"],
+            when.astimezone(timezone.utc),
+            post["with_attribution"],
+            author_of_admin(admin),
+        )
     return web.json_response({"ok": True, "message": "Изменения сохранены"})
 
 
