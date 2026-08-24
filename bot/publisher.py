@@ -58,6 +58,26 @@ def attribution_line(post: asyncpg.Record) -> str:
     return f'Прислал: <a href="tg://user?id={post["user_id"]}">{name}</a>'
 
 
+def channel_message_link(channel_id: int, message_id: int) -> str:
+    """Ссылка на сообщение в канале вида t.me/c/... — работает без имени канала,
+    даже если он приватный.
+    """
+    raw = str(channel_id)
+    raw = raw[4:] if raw.startswith("-100") else raw.lstrip("-")
+    return f"https://t.me/c/{raw}/{message_id}"
+
+
+async def _notify_author(bot: Bot, post: asyncpg.Record, link: str) -> None:
+    """Автор мог никогда больше не заглянуть в канал и не узнать о публикации сам —
+    неудача доставки (блок бота и т.п.) не должна мешать самой публикации."""
+    try:
+        await bot.send_message(
+            post["user_id"], f"✅ Твой пост опубликован в канале!\n{link}"
+        )
+    except Exception:
+        logger.debug("Не удалось уведомить автора %s о публикации", post["user_id"])
+
+
 async def publish_post(
     bot: Bot, post: asyncpg.Record, channel_id: int, with_attribution: bool
 ) -> int:
@@ -104,4 +124,10 @@ async def publish_post(
 
     message_id = sent.message_id
     await db.mark_published(post["id"], message_id, with_attribution)
+
+    # Свои посты админ уже видит в канале — уведомлять только внешних авторов.
+    if not post["is_own"]:
+        link = channel_message_link(channel_id, message_id)
+        await _notify_author(bot, post, link)
+
     return message_id

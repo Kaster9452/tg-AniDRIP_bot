@@ -2,7 +2,7 @@ import unittest
 
 from aiogram.types import InputMediaDocument, InputMediaPhoto, InputMediaVideo
 
-from bot.publisher import build_input_media
+from bot.publisher import build_input_media, channel_message_link
 
 
 class BuildInputMediaTests(unittest.TestCase):
@@ -34,6 +34,18 @@ class BuildInputMediaTests(unittest.TestCase):
         media = build_input_media([{"type": "document", "file_id": "doc1"}])
 
         self.assertIsInstance(media[0], InputMediaDocument)
+
+
+class ChannelMessageLinkTests(unittest.TestCase):
+    def test_strips_private_channel_prefix(self) -> None:
+        link = channel_message_link(-1001234567890, 42)
+
+        self.assertEqual(link, "https://t.me/c/1234567890/42")
+
+    def test_handles_id_without_prefix(self) -> None:
+        link = channel_message_link(-123456, 7)
+
+        self.assertEqual(link, "https://t.me/c/123456/7")
 
 
 if __name__ == "__main__":
