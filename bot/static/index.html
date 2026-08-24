@@ -285,9 +285,9 @@ body{
   background:rgba(255,92,158,.14);color:var(--rose);padding:2px 6px;border-radius:5px;
   font-family:'Manrope',sans-serif;font-weight:700}
 .mini{background:var(--slate);border:1px solid var(--haze);border-radius:14px;padding:11px 12px}
-.mini-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
-.mini-who{font-size:12px;font-weight:600}
-.mini-badges{margin-left:auto;display:flex;align-items:center;gap:6px}
+.mini-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+.mini-who{font-size:12px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1 1 auto}
+.mini-badges{margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0}
 .mini-mode{font-size:10px;color:var(--mist);border:1px solid var(--haze);
   border-radius:6px;padding:2px 6px;white-space:nowrap}
 .mini-admin{font-size:10px;color:var(--mist);border:1px solid var(--haze);
