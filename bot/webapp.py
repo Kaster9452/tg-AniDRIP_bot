@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import base64
 import html
+import json
 import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -127,6 +128,12 @@ MEDIA_LABELS = {
 
 def serialize(post, tz: ZoneInfo, now_local: datetime) -> dict:
     created = post["created_at"].astimezone(tz)
+    album_count = None
+    if post["media_group"]:
+        try:
+            album_count = len(json.loads(post["media_group"]))
+        except (TypeError, ValueError):
+            album_count = None
     data = {
         "id": post["id"],
         "userId": post["user_id"],
@@ -136,6 +143,7 @@ def serialize(post, tz: ZoneInfo, now_local: datetime) -> dict:
         "preview": preview_of(post),
         "text": (post["content_html"] or "").strip(),
         "media": MEDIA_LABELS.get(post["content_type"]),
+        "albumCount": album_count,
         "hasPhoto": post["content_type"] == "photo" and bool(post["file_id"]),
         "hasMedia": bool(post["file_id"]),
         "mediaType": post["content_type"],

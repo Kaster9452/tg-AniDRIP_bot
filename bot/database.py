@@ -6,6 +6,7 @@ SQLite не подходит: на бесплатном тарифе Render фа
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from typing import Any
 
@@ -55,6 +56,10 @@ CREATE INDEX IF NOT EXISTS idx_subscriber_count_history_captured
 -- на Render, а CREATE TABLE IF NOT EXISTS новую колонку в неё не добавит.
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS file_id TEXT;
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_thumb_id TEXT;
+
+-- Альбом (несколько фото/видео одним сообщением): список {type, file_id}
+-- в порядке отправки. NULL — обычный одиночный пост.
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_group TEXT;
 
 -- Пост, написанный самим админом в панели, а не присланный пользователем.
 -- Нужно, чтобы такие посты не попадали в список «Люди» и были подписаны иначе.
@@ -153,6 +158,7 @@ async def create_post(
     content_html: str | None,
     file_id: str | None = None,
     media_thumb_id: str | None = None,
+    media_group: list[dict] | None = None,
 ) -> int:
     pool = _require_pool()
     async with pool.acquire() as conn:
@@ -160,8 +166,8 @@ async def create_post(
             """
             INSERT INTO posts (user_id, user_message_id, author_name,
                                author_username, content_type, content_html, file_id,
-                               media_thumb_id)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                               media_thumb_id, media_group)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING id
             """,
             user_id,
@@ -172,6 +178,7 @@ async def create_post(
             content_html,
             file_id,
             media_thumb_id,
+            json.dumps(media_group) if media_group else None,
         )
 
 

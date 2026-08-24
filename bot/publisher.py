@@ -7,10 +7,17 @@
 
 from __future__ import annotations
 
+import json
 import logging
 
 import asyncpg
 from aiogram import Bot
+from aiogram.types import (
+    InputMediaAudio,
+    InputMediaDocument,
+    InputMediaPhoto,
+    InputMediaVideo,
+)
 
 from bot import database as db
 
@@ -19,9 +26,29 @@ logger = logging.getLogger(__name__)
 # Типы контента, которым Telegram позволяет задать подпись
 CAPTIONABLE_TYPES = {"photo", "video", "document", "audio", "animation", "voice"}
 
+_INPUT_MEDIA_TYPES = {
+    "photo": InputMediaPhoto,
+    "video": InputMediaVideo,
+    "document": InputMediaDocument,
+    "audio": InputMediaAudio,
+}
+
 
 class PublishError(RuntimeError):
     """Не удалось опубликовать пост в канал."""
+
+
+def build_input_media(items: list[dict], caption: str | None = None) -> list:
+    """Собирает альбом для send_media_group.
+
+    Telegram показывает подпись только у первого элемента альбома —
+    остальным её ставить не нужно, иначе она продублируется под каждым.
+    """
+    media = []
+    for index, item in enumerate(items):
+        cls = _INPUT_MEDIA_TYPES.get(item["type"], InputMediaPhoto)
+        media.append(cls(media=item["file_id"], caption=caption if index == 0 else None))
+    return media
 
 
 def attribution_line(post: asyncpg.Record) -> str:
@@ -40,7 +67,15 @@ async def publish_post(
     suffix = f"\n\n{attribution_line(post)}" if with_attribution else ""
 
     try:
-        if content_type == "text":
+        if post["media_group"]:
+            items = json.loads(post["media_group"])
+            caption = f"{body}{suffix}".strip() or None
+            sent_list = await bot.send_media_group(
+                channel_id, media=build_input_media(items, caption)
+            )
+            sent = sent_list[0]
+
+        elif content_type == "text":
             sent = await bot.send_message(channel_id, f"{body}{suffix}")
 
         elif content_type in CAPTIONABLE_TYPES:

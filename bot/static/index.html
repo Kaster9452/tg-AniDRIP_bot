@@ -588,7 +588,7 @@ function renderInbox() {
         <span class="tag">#${p.id}</span>
       </div>
       ${p.hasPhoto
-        ? `<div class="media media-photo" data-preview="${p.id}"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}"></div>`
+        ? `<div class="media media-photo" data-preview="${p.id}"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}">${p.albumCount > 1 ? `<span class="media-label">Альбом · ${p.albumCount}</span>` : ''}</div>`
         : p.hasMediaThumb
           ? `<div class="media media-photo" data-preview="${p.id}"><img data-media-thumb="${p.id}" alt="${esc(p.media || 'медиа')}" src="${mediaThumbCache[p.id] || ''}"><span class="media-label">${esc(p.media || 'медиа')}</span></div>`
         : p.media ? `<div class="media" data-preview="${p.id}"><span>${esc(p.media)}</span></div>` : ''}
@@ -690,7 +690,7 @@ function renderQueue() {
           <span class="mini-mode">${p.signed ? 'с подписью' : 'анонимно'}</span>
         </div>
         ${p.hasPhoto
-          ? `<div class="media media-photo" data-preview="${p.id}"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}"></div>`
+          ? `<div class="media media-photo" data-preview="${p.id}"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}">${p.albumCount > 1 ? `<span class="media-label">Альбом · ${p.albumCount}</span>` : ''}</div>`
           : p.hasMediaThumb
             ? `<div class="media media-photo" data-preview="${p.id}"><img data-media-thumb="${p.id}" alt="${esc(p.media || 'медиа')}" src="${mediaThumbCache[p.id] || ''}"><span class="media-label">${esc(p.media || 'медиа')}</span></div>`
           : ''}
@@ -723,7 +723,7 @@ function renderLog() {
         </div>
       </div>
       ${p.hasPhoto
-        ? `<div class="media media-photo" data-preview="${p.id}" style="height:60px;margin-bottom:6px"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}"></div>`
+        ? `<div class="media media-photo" data-preview="${p.id}" style="height:60px;margin-bottom:6px"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}">${p.albumCount > 1 ? `<span class="media-label">Альбом · ${p.albumCount}</span>` : ''}</div>`
         : p.hasMediaThumb
           ? `<div class="media media-photo" data-preview="${p.id}" style="height:60px;margin-bottom:6px"><img data-media-thumb="${p.id}" alt="${esc(p.media || 'медиа')}" src="${mediaThumbCache[p.id] || ''}"><span class="media-label">${esc(p.media || 'медиа')}</span></div>`
           : ''}
