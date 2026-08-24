@@ -1,4 +1,4 @@
-"""Сетка эфира: двенадцать слотов в сутки, через каждые два часа.
+"""Сетка эфира: восемь слотов в сутки, через каждые три часа.
 
 Один и тот же расчёт нужен и панели, и кнопкам в чате, поэтому он живёт
 отдельно — иначе две копии рано или поздно разойдутся.
@@ -9,8 +9,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-# Слоты по нечётным часам.
-SLOT_HOURS = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23]
+# Слоты каждые три часа: 02:00, 05:00, 08:00 ... 23:00.
+SLOT_HOURS = [2, 5, 8, 11, 14, 17, 20, 23]
 # Порядок показа: сверху поздние.
 SLOT_ORDER = list(reversed(SLOT_HOURS))
 DAY_NAMES = ["сегодня", "завтра", "послезавтра"]
@@ -20,14 +20,14 @@ OWN_TEXT_LIMIT = 4096
 def slot_of(moment: datetime) -> tuple:
     """К какому слоту относится момент времени.
 
-    Слоты нечётные и идут через два часа, значит пост в 20:40 попадает
-    в слот 19:00, а всё, что до часу ночи, — в 23:00 прошлого дня.
+    Берётся ближайший прошедший слот из SLOT_HOURS: пост в 09:40 попадает
+    в слот 08:00, а всё, что до 02:00, — в 23:00 прошлого дня.
     """
-    hour = moment.hour if moment.hour % 2 == 1 else moment.hour - 1
     day = moment.date()
-    if hour < 0:
-        hour, day = 23, day - timedelta(days=1)
-    return day, hour
+    candidates = [h for h in SLOT_HOURS if h <= moment.hour]
+    if candidates:
+        return day, max(candidates)
+    return day - timedelta(days=1), SLOT_HOURS[-1]
 
 
 def resolve_slot(tz: ZoneInfo, now_local: datetime, day_offset: int, hour: int) -> datetime:
