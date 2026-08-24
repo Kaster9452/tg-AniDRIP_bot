@@ -511,6 +511,7 @@ body{
   <div class="sheet-body" id="peopleList"><div class="skeleton"></div><div class="skeleton"></div></div>
 </section>
 
+<input type="file" id="editFileInput" accept="image/*,video/*" multiple hidden>
 <div id="toast" class="toast"></div>
 
 <!-- модальное окно для просмотра поста: фото, видео, аудио и полный текст -->
@@ -695,6 +696,92 @@ function renderLat(id) {
   if (grid) grid.innerHTML = latGridHtml(id);
 }
 
+/* ── редактирование уже отложенного поста: текст и состав файлов ── */
+const editState = {}; // postId -> { removed: Set<number>, newFiles: [{dataUrl,type}] }
+let editFilesTarget = null;
+
+function getEditState(id) {
+  if (!editState[id]) editState[id] = { removed: new Set(), newFiles: [] };
+  return editState[id];
+}
+
+function editTotalFor(id) {
+  const post = state.queue.find(p => p.id === id);
+  if (!post) return 0;
+  return post.hasMedia ? (post.albumCount || 1) : 0;
+}
+
+async function renderEditMedia(id) {
+  const post = state.queue.find(p => p.id === id);
+  const box = document.getElementById(`editmedia-${id}`);
+  if (!post || !box) return;
+
+  const st = getEditState(id);
+  const total = editTotalFor(id);
+  const types = post.albumTypes || (post.hasMedia ? [post.mediaType] : []);
+
+  let markup = '';
+  for (let i = 0; i < total; i++) {
+    if (st.removed.has(i)) continue;
+    const kind = types[i] || 'photo';
+    const tag = (kind === 'video' || kind === 'video_note') ? 'video' : 'img';
+    const cached = albumCache[`${id}:${i}`] || (i === 0 ? (mediaCache[id] || photoCache[id]) : '');
+    markup += `<div class="own-file">
+      <${tag} ${tag === 'video' ? 'muted' : ''} data-edit-thumb="${id}:${i}" ${cached ? `src="${cached}"` : ''}></${tag}>
+      <button class="own-file-remove" data-remove-edit-existing="${id}:${i}" title="Убрать" aria-label="Убрать файл">×</button>
+    </div>`;
+  }
+  st.newFiles.forEach((f, i) => {
+    markup += `<div class="own-file">
+      ${f.type === 'video' ? `<video src="${f.dataUrl}" muted></video>` : `<img src="${f.dataUrl}" alt="">`}
+      <button class="own-file-remove" data-remove-edit-new="${id}:${i}" title="Убрать" aria-label="Убрать файл">×</button>
+    </div>`;
+  });
+  box.innerHTML = markup;
+
+  for (let i = 0; i < total; i++) {
+    if (st.removed.has(i)) continue;
+    const key = `${id}:${i}`;
+    if (albumCache[key] || (i === 0 && (mediaCache[id] || photoCache[id]))) continue;
+    try {
+      const url = await loadAlbumItem(id, i);
+      const el = box.querySelector(`[data-edit-thumb="${key}"]`);
+      if (el) el.src = url;
+    } catch (_) {
+      // миниатюра просто не загрузится, файл всё равно останется в списке
+    }
+  }
+}
+
+async function addEditFiles(id, fileList) {
+  const st = getEditState(id);
+  for (const file of fileList) {
+    if (editTotalFor(id) - st.removed.size + st.newFiles.length >= OWN_FILES_LIMIT) {
+      toast(`Можно приложить не больше ${OWN_FILES_LIMIT} файлов`, true);
+      break;
+    }
+    const isVideo = file.type.startsWith('video/');
+    const isPhoto = file.type.startsWith('image/');
+    if (!isVideo && !isPhoto) {
+      toast('Поддерживаются только фото и видео', true);
+      continue;
+    }
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      st.newFiles.push({ dataUrl, type: isVideo ? 'video' : 'photo' });
+    } catch (_) {
+      toast('Не удалось прочитать файл', true);
+    }
+  }
+  renderEditMedia(id);
+}
+
+$('editFileInput').addEventListener('change', (e) => {
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';
+  if (files.length && editFilesTarget !== null) addEditFiles(editFilesTarget, files);
+});
+
 function renderQueue() {
   const panel = $('queue');
   if (!state.queue.length) {
@@ -720,12 +807,16 @@ function renderQueue() {
         <p class="mini-text" data-preview="${p.id}">${p.preview ? esc(p.preview) : esc(p.media || 'без текста')}</p>
         <div class="mini-acts">
           <button class="link" data-publish="${p.id}" data-signed="${p.signed ? 1 : 0}">Опубликовать сейчас</button>
-          <button class="link" data-open="edit-${p.id}">Изменить текст</button>
+          <button class="link" data-open="edit-${p.id}">Изменить</button>
           <button class="link" data-cancel="${p.id}">Снять</button>
         </div>
         <div class="step" id="edit-${p.id}">
           <div class="step-in">
             <textarea class="field" id="edittext-${p.id}" rows="3" style="width:100%">${esc(p.text || '')}</textarea>
+            <div id="editmedia-${p.id}" class="own-files"></div>
+            <div class="chips" style="margin-top:8px">
+              <button class="chip" data-attach-edit="${p.id}">📎 Добавить фото/видео</button>
+            </div>
             <p class="own-hint" style="margin-top:6px">Форматирование (жирный, ссылки) при сохранении не сохранится — текст станет обычным.</p>
             <div class="chips" style="margin-top:8px">
               <button class="chip" data-save-text="${p.id}">Сохранить</button>
@@ -970,6 +1061,7 @@ document.addEventListener('click', (e) => {
     if (!wasOpen) {
       // содержимое рисуем до раскрытия, иначе высота посчитается по пустому
       if (t.dataset.open.startsWith('lat-')) renderLat(+t.dataset.open.slice(4));
+      if (t.dataset.open.startsWith('edit-')) renderEditMedia(+t.dataset.open.slice(5));
       target.classList.add('open');
     }
     return;
@@ -1003,7 +1095,38 @@ document.addEventListener('click', (e) => {
   if (t.dataset.saveText) {
     const id = +t.dataset.saveText;
     const text = document.getElementById(`edittext-${id}`).value;
-    act('edit-text', { postId: id, text }, 'Текст обновлён');
+    const st = getEditState(id);
+    const keepIndexes = [];
+    for (let i = 0; i < editTotalFor(id); i++) if (!st.removed.has(i)) keepIndexes.push(i);
+    act('edit-post', {
+      postId: id,
+      text,
+      keepIndexes,
+      newFiles: st.newFiles.map(f => ({ dataUrl: f.dataUrl, type: f.type }))
+    }, 'Изменения сохранены', () => {
+      delete editState[id];
+      return refresh();
+    });
+    return;
+  }
+
+  if (t.dataset.attachEdit) {
+    editFilesTarget = +t.dataset.attachEdit;
+    $('editFileInput').click();
+    return;
+  }
+
+  if (t.dataset.removeEditExisting) {
+    const [id, idx] = t.dataset.removeEditExisting.split(':');
+    getEditState(+id).removed.add(+idx);
+    renderEditMedia(+id);
+    return;
+  }
+
+  if (t.dataset.removeEditNew) {
+    const [id, idx] = t.dataset.removeEditNew.split(':');
+    getEditState(+id).newFiles.splice(+idx, 1);
+    renderEditMedia(+id);
     return;
   }
 
