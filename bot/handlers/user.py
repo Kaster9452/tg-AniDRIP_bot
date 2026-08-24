@@ -60,6 +60,12 @@ async def forward_to_admins(message: Message, bot: Bot, admin_group_id: int) -> 
 
     content_type = message.content_type
 
+    # Голый текст без медиа предложкой не считаем — это может быть просто
+    # сообщение админам (вопрос, жалоба и т.п.), а не предложение для канала.
+    if content_type == "text":
+        await _forward_plain_text(message, bot, admin_group_id, user)
+        return
+
     # Текст или подпись сохраняем в HTML, чтобы не потерять форматирование
     # (жирный, ссылки и т.п.) при последующей публикации в канал.
     content_html = message.html_text if (message.text or message.caption) else None
@@ -82,14 +88,7 @@ async def forward_to_admins(message: Message, bot: Bot, admin_group_id: int) -> 
     keyboard = main_keyboard(post_id)
 
     try:
-        if content_type == "text":
-            sent = await bot.send_message(
-                admin_group_id, f"{header}\n\n{message.text}", reply_markup=keyboard
-            )
-            await db.save_mapping(sent.message_id, user.id, message.message_id)
-            await db.attach_admin_message(post_id, admin_group_id, sent.message_id)
-
-        elif content_type in CAPTIONABLE_TYPES:
+        if content_type in CAPTIONABLE_TYPES:
             caption = header
             if message.caption:
                 caption += f"\n\n{message.caption}"
@@ -118,6 +117,23 @@ async def forward_to_admins(message: Message, bot: Bot, admin_group_id: int) -> 
         return
 
     await message.answer("✅ Отправлено на модерацию. Спасибо!")
+
+
+async def _forward_plain_text(message: Message, bot: Bot, admin_group_id: int, user) -> None:
+    """Просто текст без медиа: пересылаем админам как обычное сообщение,
+    без создания поста в предложке и без кнопок публикации."""
+    username = f"@{user.username}" if user.username else "нет username"
+    header = f"💬 {user.full_name} ({username})\nID: <code>{user.id}</code>"
+
+    try:
+        sent = await bot.send_message(admin_group_id, f"{header}\n\n{message.text}")
+        await db.save_mapping(sent.message_id, user.id, message.message_id)
+    except Exception:
+        logger.exception("Не удалось переслать сообщение от %s", user.id)
+        await message.answer("⚠️ Не получилось отправить сообщение, попробуйте позже.")
+        return
+
+    await message.answer("✅ Сообщение отправлено администраторам.")
 
 
 def _extract_media(message: Message, content_type: str) -> tuple[str | None, str | None]:
