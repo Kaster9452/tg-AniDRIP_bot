@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from aiogram import Bot
@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 CHECK_INTERVAL_SECONDS = 30
 SUBSCRIBER_SAMPLE_INTERVAL_SECONDS = 10 * 60
+CLEANUP_INTERVAL_SECONDS = 24 * 60 * 60
+MESSAGE_MAP_RETENTION = timedelta(days=3)
 
 
 async def run_scheduler(
@@ -23,6 +25,7 @@ async def run_scheduler(
 ) -> None:
     logger.info("Планировщик отложенных постов запущен")
     last_subscriber_sample = datetime.min.replace(tzinfo=timezone.utc)
+    last_cleanup = datetime.min.replace(tzinfo=timezone.utc)
 
     while True:
         try:
@@ -37,6 +40,16 @@ async def run_scheduler(
                     logger.exception("Не удалось получить число подписчиков канала")
                 finally:
                     last_subscriber_sample = now
+
+            if (now - last_cleanup).total_seconds() >= CLEANUP_INTERVAL_SECONDS:
+                try:
+                    removed = await db.purge_old_message_map(now - MESSAGE_MAP_RETENTION)
+                    if removed:
+                        logger.info("Очищено %s старых записей message_map", removed)
+                except Exception:
+                    logger.exception("Не удалось очистить message_map")
+                finally:
+                    last_cleanup = now
 
             due = await db.get_due_posts(datetime.now(timezone.utc))
             for post in due:

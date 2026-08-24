@@ -68,6 +68,10 @@ ALTER TABLE posts ADD COLUMN IF NOT EXISTS is_own BOOLEAN NOT NULL DEFAULT FALSE
 -- Кто из админов поставил пост в очередь — показывается в панели и в /queue.
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS scheduled_by TEXT;
 
+-- Время записи нужно, чтобы периодически чистить старые связки message_map
+-- (без него база бы бесконечно росла записью на каждое пересланное сообщение).
+ALTER TABLE message_map ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
 CREATE TABLE IF NOT EXISTS banned_users (
     user_id   BIGINT PRIMARY KEY,
     username  TEXT,
@@ -147,6 +151,20 @@ async def get_user_id(admin_message_id: int) -> int | None:
             "SELECT user_id FROM message_map WHERE admin_message_id = $1",
             admin_message_id,
         )
+
+
+async def purge_old_message_map(cutoff: datetime) -> int:
+    """Удаляет связки старше cutoff — без этого таблица растёт на каждое
+    пересланное сообщение (включая каждое фото альбома) и никогда не убывает."""
+    pool = _require_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            "DELETE FROM message_map WHERE created_at < $1", cutoff
+        )
+    try:
+        return int(result.split()[-1])
+    except (ValueError, IndexError):
+        return 0
 
 
 # --- предложенные посты -------------------------------------------------------
