@@ -17,11 +17,14 @@ from bot.keyboards import (
     SCHEDULE_ACTIONS,
     SIGNED_ACTIONS,
     PostCB,
+    ScheduleSlotCB,
     main_keyboard,
     mode_keyboard,
+    schedule_slots_keyboard,
     scheduled_keyboard,
 )
 from bot.publisher import PublishError, publish_post
+from bot.slots import build_days, resolve_slot
 from bot.timeparse import TimeParseError, format_when, parse_when
 
 logger = logging.getLogger(__name__)
@@ -109,7 +112,11 @@ async def on_publish_now(
 
 @router.callback_query(PostCB.filter(F.action.in_(SCHEDULE_ACTIONS)))
 async def on_schedule_requested(
-    query: CallbackQuery, callback_data: PostCB, bot: Bot, state: FSMContext
+    query: CallbackQuery,
+    callback_data: PostCB,
+    bot: Bot,
+    state: FSMContext,
+    tz: ZoneInfo,
 ) -> None:
     post = await _guard(query, bot, callback_data.post_id)
     if post is None:
@@ -119,6 +126,7 @@ async def on_schedule_requested(
 
     await state.set_state(ScheduleStates.waiting_for_time)
     await state.update_data(post_id=post["id"], with_attribution=with_attribution)
+    days = build_days(tz, datetime.now(tz), await db.get_scheduled_posts())
     await query.message.reply(
         f"🕓 Когда опубликовать пост #{post['id']}?\n\n"
         f"Напишите время ответным сообщением. Примеры:\n"
@@ -126,8 +134,109 @@ async def on_schedule_requested(
         f"<code>завтра 09:00</code>\n"
         f"<code>25.08 20:00</code>\n"
         f"<code>+2ч</code> — через два часа\n\n"
-        f"Для отмены напишите <code>отмена</code>."
+        f"Выберите время кнопкой ниже или введите его вручную.\n"
+        f"Для отмены напишите <code>отмена</code>.",
+        reply_markup=schedule_slots_keyboard(days, 0, post["id"]),
     )
+    await query.answer()
+
+
+@router.callback_query(ScheduleSlotCB.filter(F.action == "day"))
+async def on_schedule_day(
+    query: CallbackQuery,
+    callback_data: ScheduleSlotCB,
+    bot: Bot,
+    state: FSMContext,
+    tz: ZoneInfo,
+) -> None:
+    if not await is_group_admin(bot, query.message.chat.id, query.from_user.id):
+        await query.answer(NOT_ADMIN, show_alert=True)
+        return
+
+    data = await state.get_data()
+    if data.get("post_id") != callback_data.post_id:
+        await query.answer("Выбор времени уже неактуален.", show_alert=True)
+        return
+
+    days = build_days(tz, datetime.now(tz), await db.get_scheduled_posts())
+    if callback_data.value not in range(len(days)):
+        await query.answer("Такого дня нет.", show_alert=True)
+        return
+
+    await state.update_data(schedule_day=callback_data.value)
+    await query.message.edit_reply_markup(
+        reply_markup=schedule_slots_keyboard(
+            days, callback_data.value, callback_data.post_id
+        )
+    )
+    await query.answer(days[callback_data.value]["name"])
+
+
+@router.callback_query(ScheduleSlotCB.filter(F.action == "slot"))
+async def on_schedule_slot(
+    query: CallbackQuery,
+    callback_data: ScheduleSlotCB,
+    bot: Bot,
+    state: FSMContext,
+    tz: ZoneInfo,
+) -> None:
+    if not await is_group_admin(bot, query.message.chat.id, query.from_user.id):
+        await query.answer(NOT_ADMIN, show_alert=True)
+        return
+
+    data = await state.get_data()
+    if data.get("post_id") != callback_data.post_id:
+        await query.answer("Выбор времени уже неактуален.", show_alert=True)
+        return
+
+    now_local = datetime.now(tz)
+    day_index = data.get("schedule_day", 0)
+    when = resolve_slot(tz, now_local, day_index, callback_data.value)
+    if when <= now_local:
+        await query.answer("Это время уже прошло.", show_alert=True)
+        return
+
+    post = await db.get_post(callback_data.post_id)
+    if post is None or post["status"] == "published":
+        await state.clear()
+        await query.answer("Пост уже опубликован или удалён.", show_alert=True)
+        return
+
+    with_attribution = data["with_attribution"]
+    await db.mark_scheduled(
+        callback_data.post_id, when.astimezone(timezone.utc), with_attribution
+    )
+    await state.clear()
+
+    if post["admin_chat_id"] and post["admin_message_id"]:
+        try:
+            await bot.edit_message_reply_markup(
+                chat_id=post["admin_chat_id"],
+                message_id=post["admin_message_id"],
+                reply_markup=scheduled_keyboard(callback_data.post_id),
+            )
+        except Exception:
+            logger.debug("Не удалось обновить кнопки у поста %s", callback_data.post_id)
+
+    signature = "с подписью" if with_attribution else "анонимно"
+    await query.message.edit_text(
+        f"🕓 Пост #{callback_data.post_id} запланирован на "
+        f"<b>{format_when(when, tz)}</b> ({signature})."
+    )
+    await query.answer("Запланировано")
+
+
+@router.callback_query(ScheduleSlotCB.filter(F.action == "stop"))
+async def on_schedule_stop(
+    query: CallbackQuery, callback_data: ScheduleSlotCB, state: FSMContext
+) -> None:
+    data = await state.get_data()
+    if data.get("post_id") != callback_data.post_id:
+        await query.answer("Выбор времени уже неактуален.", show_alert=True)
+        return
+
+    await state.clear()
+    await query.message.edit_text("Отложенная публикация отменена.")
     await query.answer()
 
 
