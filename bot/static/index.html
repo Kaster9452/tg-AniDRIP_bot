@@ -825,7 +825,10 @@ function renderQueue() {
               <button class="chip" data-attach-edit="${p.id}">📎 Добавить фото/видео</button>
             </div>
             <p class="own-hint" style="margin-top:6px">Форматирование (жирный, ссылки) при сохранении не сохранится — текст станет обычным.</p>
-            <input class="field" id="edittime-${p.id}" style="margin-top:8px" placeholder="новое время: 25.08 20:00, +2ч, завтра 09:00 (пусто — без изменений)">
+            <div class="step-q" style="margin-top:10px">Перенести на другое время?</div>
+            <div class="days" data-latdays="${p.id}"></div>
+            <div class="grid" data-latgrid="${p.id}"></div>
+            <input class="field" id="edittime-${p.id}" style="margin-top:8px" placeholder="или своё: 25.08 20:00, +2ч (пусто — без изменений)">
             <div class="chips" style="margin-top:8px">
               <button class="chip" data-save-text="${p.id}">Сохранить</button>
             </div>
@@ -1069,7 +1072,11 @@ document.addEventListener('click', (e) => {
     if (!wasOpen) {
       // содержимое рисуем до раскрытия, иначе высота посчитается по пустому
       if (t.dataset.open.startsWith('lat-')) renderLat(+t.dataset.open.slice(4));
-      if (t.dataset.open.startsWith('edit-')) renderEditMedia(+t.dataset.open.slice(5));
+      if (t.dataset.open.startsWith('edit-')) {
+        const id = +t.dataset.open.slice(5);
+        renderEditMedia(id);
+        renderLat(id);
+      }
       target.classList.add('open');
     }
     return;
@@ -1103,7 +1110,13 @@ document.addEventListener('click', (e) => {
   if (t.dataset.saveText) {
     const id = +t.dataset.saveText;
     const text = document.getElementById(`edittext-${id}`).value;
-    const when = document.getElementById(`edittime-${id}`).value.trim();
+    const picked = latSel[id];
+    const day = (state.days || [])[(picked || {}).day || 0];
+    let when = document.getElementById(`edittime-${id}`).value.trim();
+    if (picked && picked.time && day) {
+      // «завтра 09:00» — сервер понимает такую запись
+      when = `${day.name} ${picked.time}`;
+    }
     const st = getEditState(id);
     const keepIndexes = [];
     for (let i = 0; i < editTotalFor(id); i++) if (!st.removed.has(i)) keepIndexes.push(i);
