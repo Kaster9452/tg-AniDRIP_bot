@@ -720,7 +720,17 @@ function renderQueue() {
         <p class="mini-text" data-preview="${p.id}">${p.preview ? esc(p.preview) : esc(p.media || 'без текста')}</p>
         <div class="mini-acts">
           <button class="link" data-publish="${p.id}" data-signed="${p.signed ? 1 : 0}">Опубликовать сейчас</button>
+          <button class="link" data-open="edit-${p.id}">Изменить текст</button>
           <button class="link" data-cancel="${p.id}">Снять</button>
+        </div>
+        <div class="step" id="edit-${p.id}">
+          <div class="step-in">
+            <textarea class="field" id="edittext-${p.id}" rows="3" style="width:100%">${esc(p.text || '')}</textarea>
+            <p class="own-hint" style="margin-top:6px">Форматирование (жирный, ссылки) при сохранении не сохранится — текст станет обычным.</p>
+            <div class="chips" style="margin-top:8px">
+              <button class="chip" data-save-text="${p.id}">Сохранить</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -987,6 +997,13 @@ document.addEventListener('click', (e) => {
 
   if (t.dataset.publish) {
     act('publish', { postId: +t.dataset.publish, signed: t.dataset.signed === '1' }, 'Опубликовано');
+    return;
+  }
+
+  if (t.dataset.saveText) {
+    const id = +t.dataset.saveText;
+    const text = document.getElementById(`edittext-${id}`).value;
+    act('edit-text', { postId: id, text }, 'Текст обновлён');
     return;
   }
 

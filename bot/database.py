@@ -285,6 +285,17 @@ async def mark_cancelled(post_id: int) -> None:
         )
 
 
+async def update_post_text(post_id: int, content_html: str) -> None:
+    """Меняет текст отложенного поста без пересылки заново."""
+    pool = _require_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE posts SET content_html = $2 WHERE id = $1",
+            post_id,
+            content_html,
+        )
+
+
 async def mark_failed(post_id: int) -> None:
     """Пост не удалось опубликовать — убираем из очереди, чтобы планировщик
     не пытался снова и снова."""

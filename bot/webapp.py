@@ -48,6 +48,10 @@ OWN_FILES_LIMIT = 10
 OWN_FILE_MAX_BYTES = 15 * 1024 * 1024
 OWN_FILES_MAX_TOTAL_BYTES = 60 * 1024 * 1024
 
+# Telegram ограничивает подписи к медиа 1024 символами — это меньше,
+# чем лимит обычного текстового сообщения.
+CAPTION_TEXT_LIMIT = 1024
+
 
 class ApiError(Exception):
     def __init__(self, message: str, status: int = 400):
@@ -398,6 +402,24 @@ async def handle_cancel(request: web.Request) -> web.Response:
     await db.mark_cancelled(post["id"])
     await restore_admin_buttons(bot, post)
     return web.json_response({"ok": True, "message": "Снято с публикации"})
+
+
+async def handle_edit_text(request: web.Request) -> web.Response:
+    """Меняет текст/подпись уже отложенного поста без пересылки заново."""
+    payload = await read_payload(request)
+    await authorize(request, payload)
+
+    post = await load_post(post_id_from(payload))
+    if post["status"] != "scheduled":
+        raise ApiError("Редактировать можно только отложенные посты")
+
+    text = str(payload.get("text", "")).strip()
+    limit = OWN_TEXT_LIMIT if post["content_type"] == "text" else CAPTION_TEXT_LIMIT
+    if len(text) > limit:
+        raise ApiError(f"Слишком длинный текст: максимум {limit} символов")
+
+    await db.update_post_text(post["id"], html.escape(text))
+    return web.json_response({"ok": True, "message": "Текст обновлён"})
 
 
 async def handle_reject(request: web.Request) -> web.Response:
@@ -879,6 +901,7 @@ def build_app(bot: Bot, config: Config) -> web.Application:
     app.router.add_post("/api/publish", handle_publish)
     app.router.add_post("/api/schedule", handle_schedule)
     app.router.add_post("/api/cancel", handle_cancel)
+    app.router.add_post("/api/edit-text", handle_edit_text)
     app.router.add_post("/api/reject", handle_reject)
     app.router.add_post("/api/people", handle_people)
     app.router.add_post("/api/ban", handle_ban)
