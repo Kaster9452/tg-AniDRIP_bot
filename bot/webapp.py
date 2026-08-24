@@ -129,11 +129,15 @@ MEDIA_LABELS = {
 def serialize(post, tz: ZoneInfo, now_local: datetime) -> dict:
     created = post["created_at"].astimezone(tz)
     album_count = None
+    album_types = None
     if post["media_group"]:
         try:
-            album_count = len(json.loads(post["media_group"]))
+            album_items = json.loads(post["media_group"])
+            album_count = len(album_items)
+            album_types = [item.get("type", "photo") for item in album_items]
         except (TypeError, ValueError):
             album_count = None
+            album_types = None
     data = {
         "id": post["id"],
         "userId": post["user_id"],
@@ -144,6 +148,7 @@ def serialize(post, tz: ZoneInfo, now_local: datetime) -> dict:
         "text": (post["content_html"] or "").strip(),
         "media": MEDIA_LABELS.get(post["content_type"]),
         "albumCount": album_count,
+        "albumTypes": album_types,
         "hasPhoto": post["content_type"] == "photo" and bool(post["file_id"]),
         "hasMedia": bool(post["file_id"]),
         "mediaType": post["content_type"],
@@ -427,13 +432,30 @@ MEDIA_MIME_TYPES = {
 
 
 async def handle_media(request: web.Request) -> web.Response:
-    """Отдаёт медиа поста для предпросмотра без раскрытия токена бота."""
+    """Отдаёт медиа поста для предпросмотра без раскрытия токена бота.
+
+    Если пост — альбом, параметр index выбирает конкретный элемент;
+    без него отдаётся первый/единственный файл поста.
+    """
     payload = await read_payload(request)
     await authorize(request, payload)
 
     bot: Bot = request.app["bot"]
     post = await load_post(post_id_from(payload))
+
     file_id = post["file_id"]
+    content_type = post["content_type"]
+
+    index = payload.get("index")
+    if index is not None and post["media_group"]:
+        items = json.loads(post["media_group"])
+        try:
+            item = items[int(index)]
+        except (ValueError, IndexError):
+            raise ApiError("Такого элемента альбома нет", status=404)
+        file_id = item["file_id"]
+        content_type = item["type"]
+
     if not file_id:
         raise ApiError("У этого поста нет файла", status=404)
 
@@ -445,7 +467,7 @@ async def handle_media(request: web.Request) -> web.Response:
         raise ApiError("Не удалось загрузить медиа", status=502) from exc
 
     encoded = base64.b64encode(buffer.read()).decode("ascii")
-    mime = MEDIA_MIME_TYPES.get(post["content_type"], "application/octet-stream")
+    mime = MEDIA_MIME_TYPES.get(content_type, "application/octet-stream")
     return web.json_response({"ok": True, "dataUrl": f"data:{mime};base64,{encoded}"})
 
 

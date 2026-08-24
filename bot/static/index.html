@@ -204,6 +204,12 @@ body{
 .photo-modal-close:focus-visible{outline:2px solid var(--bone);outline-offset:2px}
 .photo-modal-img{max-width:100%;max-height:62vh;object-fit:contain;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
 #photoModalAudio{width:100%;max-width:420px}
+.photo-modal-nav-btn{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.5);color:#fff;font-size:22px;line-height:1;cursor:pointer;display:grid;place-items:center;z-index:2;transition:background .18s ease}
+.photo-modal-nav-btn:hover{background:rgba(0,0,0,.75)}
+.photo-modal-nav-btn:focus-visible{outline:2px solid var(--rose);outline-offset:2px}
+#photoModalPrev{left:12px}
+#photoModalNext{right:12px}
+.photo-modal-counter{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--mist);margin-top:8px;text-align:center}
 .photo-modal-text{margin-top:14px;max-width:480px;width:100%;font-size:13px;line-height:1.55;color:var(--bone);white-space:pre-wrap;word-break:break-word;text-align:left;max-height:26vh;overflow-y:auto;padding:0 2px}
 .photo-modal-text:empty{display:none}
 .photo-modal-caption{margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--mist);text-align:center}
@@ -496,9 +502,12 @@ body{
 <!-- модальное окно для просмотра поста: фото, видео, аудио и полный текст -->
 <div id="photoModal" class="photo-modal" hidden aria-label="Просмотр поста">
   <button class="photo-modal-close" id="closePhotoModal" title="Закрыть">×</button>
+  <button class="photo-modal-nav-btn" id="photoModalPrev" title="Предыдущее" aria-label="Предыдущее фото" hidden>‹</button>
+  <button class="photo-modal-nav-btn" id="photoModalNext" title="Следующее" aria-label="Следующее фото" hidden>›</button>
   <img id="photoModalImg" class="photo-modal-img" src="" alt="Фото поста" hidden>
   <video id="photoModalVideo" class="photo-modal-img" controls playsinline hidden></video>
   <audio id="photoModalAudio" controls hidden></audio>
+  <div id="photoModalCounter" class="photo-modal-counter"></div>
   <div id="photoModalText" class="photo-modal-text"></div>
   <div id="photoModalCaption" class="photo-modal-caption"></div>
 </div>
@@ -1225,6 +1234,10 @@ document.querySelectorAll('.tab').forEach(tab => {
 
 /* ── просмотр поста: модальное окно ── */
 let currentPhotoId = null;
+let modalAlbumIndex = 0;
+let modalAlbumTotal = 0;
+let modalAlbumTypes = [];
+const albumCache = {}; // `${postId}:${index}` -> data URL элемента альбома
 
 function closePhotoModal() {
   hideAnimated($('photoModal'), 180);
@@ -1238,9 +1251,59 @@ function closePhotoModal() {
     audio.src = '';
   }, 180);
   currentPhotoId = null;
+  modalAlbumTotal = 0;
 }
 
-/* ── предпросмотр поста: фото, видео, аудио и полный текст в одном окне ── */
+async function loadAlbumItem(postId, index) {
+  if (index === 0) {
+    const existing = mediaCache[postId] || photoCache[postId];
+    if (existing) return existing;
+  }
+  const key = `${postId}:${index}`;
+  if (albumCache[key]) return albumCache[key];
+  const data = await api('media', { postId, index });
+  albumCache[key] = data.dataUrl;
+  if (index === 0) mediaCache[postId] = data.dataUrl;
+  return data.dataUrl;
+}
+
+async function showAlbumSlide(index) {
+  if (!currentPhotoId || !modalAlbumTotal) return;
+  const postId = currentPhotoId;
+  modalAlbumIndex = ((index % modalAlbumTotal) + modalAlbumTotal) % modalAlbumTotal;
+  const targetIndex = modalAlbumIndex;
+
+  const img = $('photoModalImg');
+  const video = $('photoModalVideo');
+  const audio = $('photoModalAudio');
+  video.pause(); audio.pause();
+  img.hidden = true; video.hidden = true; audio.hidden = true;
+
+  $('photoModalCounter').textContent = modalAlbumTotal > 1
+    ? `${targetIndex + 1} / ${modalAlbumTotal}` : '';
+
+  let dataUrl;
+  try {
+    dataUrl = await loadAlbumItem(postId, targetIndex);
+  } catch (_) {
+    toast('Не удалось загрузить медиа', true);
+    return;
+  }
+  // пока грузилось, окно могли закрыть, открыть другой пост или пролистать дальше
+  if (currentPhotoId !== postId || modalAlbumIndex !== targetIndex) return;
+
+  const kind = modalAlbumTypes[targetIndex] || 'photo';
+  if (kind === 'video' || kind === 'video_note') {
+    video.src = dataUrl; video.hidden = false;
+    video.play().catch(() => {});
+  } else if (kind === 'audio' || kind === 'voice') {
+    audio.src = dataUrl; audio.hidden = false;
+  } else {
+    img.src = dataUrl; img.hidden = false;
+  }
+}
+
+/* ── предпросмотр поста: фото, видео, аудио, альбомы и полный текст в одном окне ── */
 async function openMediaModal(postId) {
   const post = state.inbox.find(p => p.id === postId)
     || state.queue.find(p => p.id === postId)
@@ -1248,6 +1311,10 @@ async function openMediaModal(postId) {
   if (!post) return;
 
   currentPhotoId = postId;
+  modalAlbumTotal = post.hasMedia ? (post.albumCount || 1) : 0;
+  modalAlbumTypes = post.albumTypes || (post.hasMedia ? [post.mediaType] : []);
+  modalAlbumIndex = 0;
+
   const img = $('photoModalImg');
   const video = $('photoModalVideo');
   const audio = $('photoModalAudio');
@@ -1259,37 +1326,19 @@ async function openMediaModal(postId) {
 
   $('photoModalText').innerHTML = post.text ? esc(post.text).replace(/\n/g, '<br>') : '';
   $('photoModalCaption').textContent = post.author ? `Пост #${postId} от ${post.author}` : `Пост #${postId}`;
+  $('photoModalCounter').textContent = '';
+  $('photoModalPrev').hidden = modalAlbumTotal <= 1;
+  $('photoModalNext').hidden = modalAlbumTotal <= 1;
   $('photoModal').classList.remove('closing');
   $('photoModal').hidden = false;
 
-  if (!post.hasMedia) return;
-
-  let cached = mediaCache[postId] || photoCache[postId];
-  if (!cached) {
-    try {
-      const data = await api('media', { postId });
-      cached = data.dataUrl;
-    } catch (_) {
-      toast('Не удалось загрузить медиа', true);
-      return;
-    }
-  }
-  mediaCache[postId] = cached;
-  // пока грузилось, окно могли закрыть или открыть другой пост
-  if (currentPhotoId !== postId) return;
-
-  const kind = post.mediaType;
-  if (kind === 'video' || kind === 'video_note') {
-    video.src = cached; video.hidden = false;
-    video.play().catch(() => {});
-  } else if (kind === 'audio' || kind === 'voice') {
-    audio.src = cached; audio.hidden = false;
-  } else {
-    img.src = cached; img.hidden = false;
-  }
+  if (!modalAlbumTotal) return;
+  await showAlbumSlide(0);
 }
 
 $('closePhotoModal').addEventListener('click', closePhotoModal);
+$('photoModalPrev').addEventListener('click', () => showAlbumSlide(modalAlbumIndex - 1));
+$('photoModalNext').addEventListener('click', () => showAlbumSlide(modalAlbumIndex + 1));
 
 // закрытие по клику вне картинки
 $('photoModal').addEventListener('click', (e) => {
@@ -1302,6 +1351,7 @@ document.addEventListener('click', (e) => {
   if (!target) return;
   openMediaModal(+target.dataset.preview);
 });
+
 
 if (!initData) {
   showNotice('Панель нужно открывать из Telegram — командой /panel в личке с ботом.');
