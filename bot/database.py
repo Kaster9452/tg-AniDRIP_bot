@@ -188,6 +188,9 @@ async def create_own_post(
     author_username: str | None,
     content_html: str,
     scheduled_at: datetime,
+    content_type: str = "text",
+    file_id: str | None = None,
+    media_group: list[dict] | None = None,
 ) -> int:
     """Пост, который админ написал сам в панели, сразу встаёт в очередь.
 
@@ -199,15 +202,18 @@ async def create_own_post(
         return await conn.fetchval(
             """
             INSERT INTO posts (user_id, user_message_id, author_name, author_username,
-                               content_type, content_html, status, scheduled_at,
-                               with_attribution, is_own)
-            VALUES ($1, 0, $2, $3, 'text', $4, 'scheduled', $5, FALSE, TRUE)
+                               content_type, content_html, file_id, media_group, status,
+                               scheduled_at, with_attribution, is_own)
+            VALUES ($1, 0, $2, $3, $4, $5, $6, $7, 'scheduled', $8, FALSE, TRUE)
             RETURNING id
             """,
             user_id,
             author_name,
             author_username,
+            content_type,
             content_html,
+            file_id,
+            json.dumps(media_group) if media_group else None,
             scheduled_at,
         )
 

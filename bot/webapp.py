@@ -19,6 +19,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from aiogram import Bot
+from aiogram.types import BufferedInputFile, InputMediaPhoto, InputMediaVideo
 from aiohttp import web
 
 from bot import database as db
@@ -41,11 +42,31 @@ STATIC_DIR = Path(__file__).parent / "static"
 
 WEEKDAYS = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"]
 
+# Ограничения на файлы своего поста: панель шлёт их через base64 в JSON,
+# поэтому держим лимиты скромными, чтобы не раздуть память сервера.
+OWN_FILES_LIMIT = 10
+OWN_FILE_MAX_BYTES = 15 * 1024 * 1024
+OWN_FILES_MAX_TOTAL_BYTES = 60 * 1024 * 1024
+
+
 class ApiError(Exception):
     def __init__(self, message: str, status: int = 400):
         super().__init__(message)
         self.message = message
         self.status = status
+
+
+def _decode_data_url(data_url: str) -> bytes | None:
+    """Разбирает data:...;base64,... в сырые байты файла."""
+    if not isinstance(data_url, str) or "," not in data_url:
+        return None
+    header, _, encoded = data_url.partition(",")
+    if "base64" not in header:
+        return None
+    try:
+        return base64.b64decode(encoded)
+    except (ValueError, TypeError):
+        return None
 
 
 # --- вспомогательное форматирование для интерфейса --------------------------
@@ -648,10 +669,37 @@ async def handle_own(request: web.Request) -> web.Response:
     now_local = datetime.now(tz)
 
     text = str(payload.get("text", "")).strip()
-    if not text:
-        raise ApiError("Напишите текст поста")
+    raw_files = payload.get("files") or []
+    if not isinstance(raw_files, list):
+        raise ApiError("Некорректный список файлов")
+    if not text and not raw_files:
+        raise ApiError("Напишите текст или прикрепите фото/видео")
     if len(text) > OWN_TEXT_LIMIT:
         raise ApiError(f"Слишком длинный текст: максимум {OWN_TEXT_LIMIT} символов")
+    if len(raw_files) > OWN_FILES_LIMIT:
+        raise ApiError(f"Не больше {OWN_FILES_LIMIT} файлов в одном посте")
+
+    items: list[tuple[str, bytes]] = []
+    total_bytes = 0
+    for entry in raw_files:
+        if not isinstance(entry, dict):
+            raise ApiError("Некорректный файл")
+        kind = entry.get("type")
+        if kind not in ("photo", "video"):
+            raise ApiError("Поддерживаются только фото и видео")
+        raw = _decode_data_url(str(entry.get("dataUrl", "")))
+        if not raw:
+            raise ApiError("Не удалось прочитать один из файлов")
+        if len(raw) > OWN_FILE_MAX_BYTES:
+            raise ApiError(
+                f"Файл слишком большой: максимум {OWN_FILE_MAX_BYTES // (1024 * 1024)} МБ"
+            )
+        total_bytes += len(raw)
+        if total_bytes > OWN_FILES_MAX_TOTAL_BYTES:
+            raise ApiError(
+                f"Суммарный размер файлов больше {OWN_FILES_MAX_TOTAL_BYTES // (1024 * 1024)} МБ"
+            )
+        items.append((kind, raw))
 
     try:
         day_offset = int(payload.get("day", 0))
@@ -676,12 +724,61 @@ async def handle_own(request: web.Request) -> web.Response:
     # иначе любой символ < свалит отправку.
     content_html = html.escape(text)
 
+    content_type = "text"
+    file_id: str | None = None
+    media_group: list[dict] | None = None
+
+    if items:
+        # Файл отправляется в группу админов, чтобы получить его Telegram file_id
+        # для дальнейшей публикации — сами байты в базе не храним.
+        caption = content_html or None
+        try:
+            if len(items) == 1:
+                kind, raw = items[0]
+                input_file = BufferedInputFile(
+                    raw, filename="photo.jpg" if kind == "photo" else "video.mp4"
+                )
+                if kind == "photo":
+                    sent = await bot.send_photo(
+                        config.admin_group_id, input_file, caption=caption
+                    )
+                    file_id = sent.photo[-1].file_id
+                else:
+                    sent = await bot.send_video(
+                        config.admin_group_id, input_file, caption=caption
+                    )
+                    file_id = sent.video.file_id
+                content_type = kind
+            else:
+                media = []
+                for index, (kind, raw) in enumerate(items):
+                    input_file = BufferedInputFile(
+                        raw, filename=f"{kind}{index}.{'jpg' if kind == 'photo' else 'mp4'}"
+                    )
+                    cls = InputMediaVideo if kind == "video" else InputMediaPhoto
+                    media.append(
+                        cls(media=input_file, caption=caption if index == 0 else None)
+                    )
+                sent_list = await bot.send_media_group(config.admin_group_id, media=media)
+                media_group = []
+                for (kind, _), sent in zip(items, sent_list):
+                    fid = sent.photo[-1].file_id if kind == "photo" else sent.video.file_id
+                    media_group.append({"type": kind, "file_id": fid})
+                file_id = media_group[0]["file_id"]
+                content_type = media_group[0]["type"]
+        except Exception as exc:
+            logger.exception("Не удалось отправить файлы своего поста")
+            raise ApiError(f"Не удалось отправить файлы: {exc}", status=502) from exc
+
     post_id = await db.create_own_post(
         user_id=int(admin["id"]),
         author_name=admin.get("first_name"),
         author_username=admin.get("username"),
         content_html=content_html,
         scheduled_at=when.astimezone(timezone.utc),
+        content_type=content_type,
+        file_id=file_id,
+        media_group=media_group,
     )
 
     await notify_group(
@@ -763,7 +860,10 @@ async def error_middleware(request: web.Request, handler):
 
 
 def build_app(bot: Bot, config: Config) -> web.Application:
-    app = web.Application(middlewares=[error_middleware])
+    # Файлы своего поста приходят base64 в теле JSON, а у aiohttp по умолчанию лимит 1 МБ.
+    app = web.Application(
+        middlewares=[error_middleware], client_max_size=100 * 1024 * 1024
+    )
     app["bot"] = bot
     app["config"] = config
 

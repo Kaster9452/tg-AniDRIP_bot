@@ -111,6 +111,16 @@ body{
 .count{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--mist)}
 .count.over{color:var(--rose)}
 
+.own-files{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.own-files:empty{display:none;margin-top:0}
+.own-file{position:relative;width:64px;height:64px;flex:none;border-radius:11px;overflow:hidden;
+  background:var(--haze);border:1px solid var(--haze)}
+.own-file img,.own-file video{width:100%;height:100%;object-fit:cover;display:block}
+.own-file-remove{position:absolute;top:3px;right:3px;width:18px;height:18px;border:0;border-radius:50%;
+  background:rgba(0,0,0,.72);color:#fff;font-size:12px;line-height:1;cursor:pointer;display:grid;place-items:center}
+.own-file-remove:hover{background:rgba(0,0,0,.9)}
+.own-file-remove:focus-visible{outline:2px solid var(--rose);outline-offset:2px}
+
 /* Переключатель дня — цельная планка, а не три отдельные плитки:
    иначе он сливается с сеткой слотов, где плитки такие же. */
 .days{display:flex;gap:4px;margin-bottom:13px;padding:4px;
@@ -460,10 +470,13 @@ body{
     </div>
   </div>
   <div class="sheet-body">
-    <div class="own-label"><b>Что публикуем</b><span>обычный текст</span></div>
+    <div class="own-label"><b>Что публикуем</b><span id="ownKindLabel">обычный текст</span></div>
     <div class="editor">
-      <textarea id="ownText" placeholder="Текст поста. Можно вставить ссылку — Telegram сам сделает превью."></textarea>
+      <textarea id="ownText" placeholder="Текст поста (можно оставить пустым, если прикрепите фото или видео)."></textarea>
+      <div id="ownFiles" class="own-files"></div>
       <div class="editor-foot">
+        <button class="chip" id="ownAttach" type="button">📎 Фото / видео</button>
+        <input type="file" id="ownFileInput" accept="image/*,video/*" multiple hidden>
         <span class="count"><span id="ownCount">0</span> / 4096</span>
       </div>
     </div>
@@ -1019,6 +1032,53 @@ document.addEventListener('click', (e) => {
 let ownDays = [];
 let ownDay = 0;
 let ownSlot = null;
+const OWN_FILES_LIMIT = 10;
+let ownFiles = []; // { dataUrl, type: 'photo'|'video' }
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderOwnFiles() {
+  $('ownFiles').innerHTML = ownFiles.map((f, i) => `
+    <div class="own-file">
+      ${f.type === 'video' ? `<video src="${f.dataUrl}" muted></video>` : `<img src="${f.dataUrl}" alt="">`}
+      <button class="own-file-remove" data-remove-own-file="${i}" title="Убрать" aria-label="Убрать файл">×</button>
+    </div>`).join('');
+
+  const label = $('ownKindLabel');
+  if (!ownFiles.length) label.textContent = 'обычный текст';
+  else if (ownFiles.length === 1) label.textContent = ownFiles[0].type === 'video' ? 'видео' : 'фото';
+  else label.textContent = `альбом · ${ownFiles.length}`;
+}
+
+async function addOwnFiles(fileList) {
+  for (const file of fileList) {
+    if (ownFiles.length >= OWN_FILES_LIMIT) {
+      toast(`Можно приложить не больше ${OWN_FILES_LIMIT} файлов`, true);
+      break;
+    }
+    const isVideo = file.type.startsWith('video/');
+    const isPhoto = file.type.startsWith('image/');
+    if (!isVideo && !isPhoto) {
+      toast('Поддерживаются только фото и видео', true);
+      continue;
+    }
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      ownFiles.push({ dataUrl, type: isVideo ? 'video' : 'photo' });
+    } catch (_) {
+      toast('Не удалось прочитать файл', true);
+    }
+  }
+  renderOwnFiles();
+  renderOwnFoot();
+}
 
 function renderOwnDays() {
   $('ownDays').innerHTML = ownDays.map(d => `
@@ -1053,10 +1113,11 @@ function renderOwnFoot() {
   const btn = $('ownGo');
   const text = $('ownText').value.trim();
   const day = ownDays[ownDay];
-  btn.disabled = !ownSlot || !text || busy;
+  const hasContent = !!text || ownFiles.length > 0;
+  btn.disabled = !ownSlot || !hasContent || busy;
   btn.textContent = ownSlot && day
     ? `Отложить на ${ownSlot}, ${day.name}`
-    : (!text ? 'Напишите текст' : 'Выберите время');
+    : (!hasContent ? 'Напишите текст или прикрепите файл' : 'Выберите время');
 }
 
 function renderOwn() {
@@ -1090,16 +1151,23 @@ function closeOwn() {
 
 async function submitOwn() {
   const text = $('ownText').value.trim();
-  if (!text || !ownSlot || busy) return;
+  if ((!text && !ownFiles.length) || !ownSlot || busy) return;
 
   busy = true;
   renderOwnFoot();
   try {
-    const res = await api('own', { text, day: ownDay, time: ownSlot });
+    const res = await api('own', {
+      text,
+      day: ownDay,
+      time: ownSlot,
+      files: ownFiles.map(f => ({ dataUrl: f.dataUrl, type: f.type }))
+    });
     haptic('success');
     toast(res.message || 'Отложено');
     $('ownText').value = '';
     $('ownCount').textContent = '0';
+    ownFiles = [];
+    renderOwnFiles();
     ownSlot = null;
     busy = false;
     closeOwn();
@@ -1114,6 +1182,12 @@ async function submitOwn() {
 $('openOwn').addEventListener('click', openOwn);
 $('closeOwn').addEventListener('click', closeOwn);
 $('ownGo').addEventListener('click', submitOwn);
+$('ownAttach').addEventListener('click', () => $('ownFileInput').click());
+$('ownFileInput').addEventListener('change', (e) => {
+  const files = Array.from(e.target.files || []);
+  e.target.value = ''; // разрешаем выбрать тот же файл повторно
+  if (files.length) addOwnFiles(files);
+});
 
 $('ownText').addEventListener('input', (e) => {
   const el = $('ownCount');
@@ -1123,6 +1197,13 @@ $('ownText').addEventListener('input', (e) => {
 });
 
 $('ownSheet').addEventListener('click', (e) => {
+  const removeBtn = e.target.closest('[data-remove-own-file]');
+  if (removeBtn) {
+    ownFiles.splice(+removeBtn.dataset.removeOwnFile, 1);
+    renderOwnFiles();
+    renderOwnFoot();
+    return;
+  }
   const dayBtn = e.target.closest('[data-ownday]');
   if (dayBtn) {
     ownDay = +dayBtn.dataset.ownday;
