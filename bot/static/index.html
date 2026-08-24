@@ -196,24 +196,19 @@ body{
 .media-photo img:hover{filter:brightness(1.05)}
 
 /* модальное окно для просмотра фото */
-.photo-modal{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:60;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom);animation:fadeIn .18s ease}
+.photo-modal{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:60;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom);overflow-y:auto;animation:fadeIn .18s ease}
 .photo-modal[hidden]{display:none}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .photo-modal-close{position:absolute;top:calc(env(safe-area-inset-top) + 12px);right:16px;width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:22px;line-height:1;cursor:pointer;display:grid;place-items:center;transition:background .18s ease}
 .photo-modal-close:hover{background:rgba(255,255,255,.2)}
 .photo-modal-close:focus-visible{outline:2px solid var(--bone);outline-offset:2px}
-.photo-modal-img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.photo-modal-img{max-width:100%;max-height:62vh;object-fit:contain;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+#photoModalAudio{width:100%;max-width:420px}
+.photo-modal-text{margin-top:14px;max-width:480px;width:100%;font-size:13px;line-height:1.55;color:var(--bone);white-space:pre-wrap;word-break:break-word;text-align:left;max-height:26vh;overflow-y:auto;padding:0 2px}
+.photo-modal-text:empty{display:none}
 .photo-modal-caption{margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--mist);text-align:center}
-.preview-modal{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:60;display:flex;align-items:center;justify-content:center;padding:18px;animation:fadeIn .18s ease}
-.preview-modal[hidden]{display:none}
-.preview-box{width:100%;max-width:480px;background:var(--ink);border:1px solid var(--haze);border-radius:18px;padding:14px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
-.preview-head{display:flex;align-items:center;gap:9px;margin-bottom:13px}.preview-title{font-family:'Unbounded',sans-serif;font-size:14px;font-weight:600}.preview-close{margin-left:auto;width:34px;height:34px;border:1px solid var(--haze);border-radius:10px;background:var(--slate);color:var(--bone);font-size:20px;cursor:pointer}.preview-close:hover{border-color:var(--rose);color:var(--rose)}
-.preview-post{overflow:hidden;border:1px solid #263748;border-radius:14px;background:#0b1724}.telegram-chat{min-height:260px;padding:24px 12px 18px;display:flex;align-items:flex-end;background:#0b1724;background-image:radial-gradient(rgba(126,161,184,.08) 1px,transparent 1px),radial-gradient(rgba(0,0,0,.12) 1px,transparent 1px);background-position:0 0,13px 13px;background-size:26px 26px}.telegram-bubble{position:relative;max-width:94%;padding:9px 10px 6px;border-radius:16px 16px 16px 3px;background:#182939;color:#f1f4f6;box-shadow:0 1px 1px rgba(0,0,0,.24)}.telegram-bubble::after{content:"";position:absolute;left:-7px;bottom:0;border-right:9px solid #182939;border-top:8px solid transparent}.telegram-text{font-size:14px;line-height:1.45;word-break:break-word}.telegram-media{height:96px;margin:-2px -4px 8px;border-radius:10px;background:linear-gradient(140deg,#31506a,#1b3547);color:#dce8ee;display:flex;align-items:flex-end;padding:7px;font-size:10px}.telegram-meta{float:right;margin:4px 0 0 10px;color:#7892a4;font-size:10px}.preview-note{font-size:10px;color:var(--mist);margin-top:11px;text-align:center}
-
-.telegram-media{overflow:hidden}.telegram-media img,.telegram-media video{width:100%;height:100%;object-fit:cover;border-radius:9px;display:block}.telegram-media video{object-fit:contain;background:#07121d}.media-expand{position:absolute;right:8px;bottom:8px;width:38px;height:38px;border:0;border-radius:11px;background:rgba(0,0,0,.7);color:#fff;font-size:20px;cursor:pointer}.telegram-media{position:relative}.media-expand:focus-visible{outline:2px solid var(--rose);outline-offset:2px}
 .media-photo .media-label{position:absolute;left:8px;bottom:8px;z-index:1}
-.telegram-media video.is-expanded{position:fixed;inset:0;z-index:80;width:100vw;height:100vh;max-width:none;max-height:none;border-radius:0;background:#000}
-.telegram-media{height:auto;min-height:96px;aspect-ratio:16/9}.telegram-media video{object-fit:contain;background:#07121d}
+[data-preview]{cursor:pointer}
 .actions{display:flex;gap:7px;margin-top:12px}
 .btn{flex:1;border:0;cursor:pointer;border-radius:11px;padding:11px 6px;
   font-family:'Manrope',sans-serif;font-weight:700;font-size:12.5px;
@@ -498,19 +493,14 @@ body{
 
 <div id="toast" class="toast"></div>
 
-<!-- модальное окно для просмотра фото -->
-<div id="photoModal" class="photo-modal" hidden aria-label="Просмотр фото">
+<!-- модальное окно для просмотра поста: фото, видео, аудио и полный текст -->
+<div id="photoModal" class="photo-modal" hidden aria-label="Просмотр поста">
   <button class="photo-modal-close" id="closePhotoModal" title="Закрыть">×</button>
-  <img id="photoModalImg" class="photo-modal-img" src="" alt="Фото поста">
+  <img id="photoModalImg" class="photo-modal-img" src="" alt="Фото поста" hidden>
+  <video id="photoModalVideo" class="photo-modal-img" controls playsinline hidden></video>
+  <audio id="photoModalAudio" controls hidden></audio>
+  <div id="photoModalText" class="photo-modal-text"></div>
   <div id="photoModalCaption" class="photo-modal-caption"></div>
-</div>
-
-<div id="previewModal" class="preview-modal" hidden aria-label="Предпросмотр поста">
-  <div class="preview-box" role="dialog" aria-modal="true" aria-labelledby="previewTitle">
-    <div class="preview-head"><div class="preview-title" id="previewTitle">Предпросмотр</div><button class="preview-close" id="closePreview" title="Закрыть">×</button></div>
-    <div class="preview-post" id="previewPost"></div>
-    <div class="preview-note">Публикация ещё не выполнена</div>
-  </div>
 </div>
 
 <script>
@@ -598,11 +588,11 @@ function renderInbox() {
         <span class="tag">#${p.id}</span>
       </div>
       ${p.hasPhoto
-        ? `<div class="media media-photo" data-viewphoto="${p.id}"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}"></div>`
+        ? `<div class="media media-photo" data-preview="${p.id}"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}"></div>`
         : p.hasMediaThumb
           ? `<div class="media media-photo" data-preview="${p.id}"><img data-media-thumb="${p.id}" alt="${esc(p.media || 'медиа')}" src="${mediaThumbCache[p.id] || ''}"><span class="media-label">${esc(p.media || 'медиа')}</span></div>`
-        : p.media ? `<div class="media"><span>${esc(p.media)}</span></div>` : ''}
-      ${p.preview ? `<p class="body-text">${esc(p.preview)}</p>` : ''}
+        : p.media ? `<div class="media" data-preview="${p.id}"><span>${esc(p.media)}</span></div>` : ''}
+      ${p.preview ? `<p class="body-text" data-preview="${p.id}">${esc(p.preview)}</p>` : ''}
       <div class="actions">
         <button class="btn btn-pub" data-open="pub-${p.id}">Опубликовать</button>
         <button class="btn btn-later" data-open="lat-${p.id}">Отложить</button>
@@ -694,14 +684,17 @@ function renderQueue() {
         ${esc(p.time)} · ${esc(p.day)}
         ${i === 0 ? '<span class="badge-next">Следующий</span>' : ''}
       </div>
-      <div class="mini" ${p.hasPhoto ? `data-viewphoto="${p.id}" style="cursor:pointer"` : ''}>
+      <div class="mini">
         <div class="mini-row">
           <span class="mini-who">#${p.id} ${p.own ? '· свой пост' : 'от ' + esc(p.author)}</span>
           <span class="mini-mode">${p.signed ? 'с подписью' : 'анонимно'}</span>
         </div>
-        ${p.hasPhoto ? `<div class="media media-photo" data-viewphoto="${p.id}"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}"></div>` : ''}
-        ${p.preview ? `<p class="mini-text">${esc(p.preview)}</p>`
-                    : `<p class="mini-text">${esc(p.media || 'без текста')}</p>`}
+        ${p.hasPhoto
+          ? `<div class="media media-photo" data-preview="${p.id}"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}"></div>`
+          : p.hasMediaThumb
+            ? `<div class="media media-photo" data-preview="${p.id}"><img data-media-thumb="${p.id}" alt="${esc(p.media || 'медиа')}" src="${mediaThumbCache[p.id] || ''}"><span class="media-label">${esc(p.media || 'медиа')}</span></div>`
+          : ''}
+        <p class="mini-text" data-preview="${p.id}">${p.preview ? esc(p.preview) : esc(p.media || 'без текста')}</p>
         <div class="mini-acts">
           <button class="link" data-publish="${p.id}" data-signed="${p.signed ? 1 : 0}">Опубликовать сейчас</button>
           <button class="link" data-cancel="${p.id}">Снять</button>
@@ -720,7 +713,7 @@ function renderLog() {
   panel.innerHTML = state.log.map(p => {
     const initials = (p.author || 'U').split(' ').map(n => n[0] || '').join('').toUpperCase().slice(0, 2);
     return `
-    <div class="done" data-anim="log-${p.id}" ${p.hasPhoto ? `data-viewphoto="${p.id}" style="cursor:pointer"` : ''}>
+    <div class="done" data-anim="log-${p.id}">
       <span class="done-mark"></span>
       <div style="display:flex;align-items:center;gap:9px;margin-bottom:8px">
         <div class="ava-img" data-avatar="${p.userId}" style="background-color:${p.avatarColor || '#2A2838'}">${initials}</div>
@@ -729,8 +722,12 @@ function renderLog() {
           <div class="done-mode">${p.signed ? 'с подписью ' + esc(p.author) : 'анонимно'}</div>
         </div>
       </div>
-      ${p.hasPhoto ? `<div class="media media-photo" data-viewphoto="${p.id}" style="height:60px;margin-bottom:6px"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}"></div>` : ''}
-      <p class="done-text">#${p.id} — ${esc(p.preview || p.media || 'без текста')}</p>
+      ${p.hasPhoto
+        ? `<div class="media media-photo" data-preview="${p.id}" style="height:60px;margin-bottom:6px"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}"></div>`
+        : p.hasMediaThumb
+          ? `<div class="media media-photo" data-preview="${p.id}" style="height:60px;margin-bottom:6px"><img data-media-thumb="${p.id}" alt="${esc(p.media || 'медиа')}" src="${mediaThumbCache[p.id] || ''}"><span class="media-label">${esc(p.media || 'медиа')}</span></div>`
+          : ''}
+      <p class="done-text" data-preview="${p.id}">#${p.id} — ${esc(p.preview || p.media || 'без текста')}</p>
     </div>
   `}).join('');
 }
@@ -932,16 +929,6 @@ async function act(path, body, okText, after) {
 document.addEventListener('click', (e) => {
   const t = e.target.closest('button');
   if (!t) return;
-
-  if (t.dataset.expandVideo) {
-    expandPreviewVideo();
-    return;
-  }
-
-  if (t.dataset.preview) {
-    openPreview(+t.dataset.preview);
-    return;
-  }
 
   if (t.dataset.open) {
     const target = document.getElementById(t.dataset.open);
@@ -1236,105 +1223,71 @@ document.querySelectorAll('.tab').forEach(tab => {
   });
 });
 
-/* ── просмотр фото: модальное окно ── */
+/* ── просмотр поста: модальное окно ── */
 let currentPhotoId = null;
-
-function openPhotoModal(postId) {
-  const post = state.inbox.find(p => p.id === postId) || state.queue.find(p => p.id === postId) || state.log.find(p => p.id === postId);
-  if (!post || !photoCache[postId]) return;
-  
-  currentPhotoId = postId;
-  $('photoModalImg').src = photoCache[postId];
-  $('photoModalCaption').textContent = post.author ? `Пост #${postId} от ${post.author}` : `Пост #${postId}`;
-  $('photoModal').classList.remove('closing');
-  $('photoModal').hidden = false;
-  
-  // включаем полный экран через Telegram WebApp (если доступно)
-  try { tg?.MainButton?.hide(); } catch (_) {}
-}
 
 function closePhotoModal() {
   hideAnimated($('photoModal'), 180);
-  setTimeout(() => { $('photoModalImg').src = ''; }, 180);
+  const video = $('photoModalVideo');
+  const audio = $('photoModalAudio');
+  video.pause();
+  audio.pause();
+  setTimeout(() => {
+    $('photoModalImg').src = '';
+    video.src = '';
+    audio.src = '';
+  }, 180);
   currentPhotoId = null;
 }
 
-async function openPreview(postId) {
-  const post = state.inbox.find(p => p.id === postId);
+/* ── предпросмотр поста: фото, видео, аудио и полный текст в одном окне ── */
+async function openMediaModal(postId) {
+  const post = state.inbox.find(p => p.id === postId)
+    || state.queue.find(p => p.id === postId)
+    || state.log.find(p => p.id === postId);
   if (!post) return;
-  const media = post.hasMedia
-    ? `<div class="telegram-media"><span>${esc(post.media || 'медиа')}</span></div>`
-    : '';
-  $('previewPost').innerHTML = `
-    <div class="telegram-chat">
-      <div class="telegram-bubble">
-        ${media}
-        ${post.preview ? `<div class="telegram-text">${esc(post.preview)}</div>` : '<div class="telegram-text">без текста</div>'}
-        <span class="telegram-meta">20:00 ✓✓</span>
-      </div>
-    </div>`;
-  $('previewModal').hidden = false;
-  if (post.hasMediaThumb && !mediaThumbCache[postId]) {
-    try {
-      const thumb = await api('media-thumb', { postId });
-      mediaThumbCache[postId] = thumb.dataUrl;
-      const mediaEl = $('previewPost').querySelector('.telegram-media');
-      if (mediaEl) mediaEl.innerHTML = `<img src="${mediaThumbCache[postId]}" alt="${esc(post.media || 'медиа')}">`;
-    } catch (_) {
-      // Оставляем тип медиа, если миниатюру не удалось получить.
-    }
-  }
-  if (post.hasMedia && !mediaCache[postId]) {
+
+  currentPhotoId = postId;
+  const img = $('photoModalImg');
+  const video = $('photoModalVideo');
+  const audio = $('photoModalAudio');
+  video.pause();
+  audio.pause();
+  img.hidden = true; img.src = '';
+  video.hidden = true; video.src = '';
+  audio.hidden = true; audio.src = '';
+
+  $('photoModalText').innerHTML = post.text ? esc(post.text).replace(/\n/g, '<br>') : '';
+  $('photoModalCaption').textContent = post.author ? `Пост #${postId} от ${post.author}` : `Пост #${postId}`;
+  $('photoModal').classList.remove('closing');
+  $('photoModal').hidden = false;
+
+  if (!post.hasMedia) return;
+
+  let cached = mediaCache[postId] || photoCache[postId];
+  if (!cached) {
     try {
       const data = await api('media', { postId });
-      mediaCache[postId] = data.dataUrl;
-      const tag = post.mediaType === 'video' || post.mediaType === 'video_note' ? 'video' : 'img';
-      const mediaEl = $('previewPost').querySelector('.telegram-media');
-      if (mediaEl) mediaEl.innerHTML = tag === 'video'
-        ? `<video id="previewVideo" src="${mediaCache[postId]}" controls playsinline></video><button class="media-expand" data-expand-video title="Открыть на весь экран" aria-label="Открыть видео на весь экран">⛶</button>`
-        : `<img src="${mediaCache[postId]}" alt="${esc(post.media || 'медиа')}">`;
+      cached = data.dataUrl;
     } catch (_) {
-      // Для фото используем старый проверенный endpoint как запасной путь.
-      if (post.mediaType === 'photo') {
-        try {
-          const data = await api('photo', { postId });
-          mediaCache[postId] = data.dataUrl;
-          const mediaEl = $('previewPost').querySelector('.telegram-media');
-          if (mediaEl) mediaEl.innerHTML = `<img src="${mediaCache[postId]}" alt="Фото">`;
-        } catch (_) {
-          // Название типа медиа остаётся, если Telegram временно недоступен.
-        }
-      }
+      toast('Не удалось загрузить медиа', true);
+      return;
     }
   }
-}
+  mediaCache[postId] = cached;
+  // пока грузилось, окно могли закрыть или открыть другой пост
+  if (currentPhotoId !== postId) return;
 
-function closePreview() {
-  $('previewModal').hidden = true;
-  $('previewPost').innerHTML = '';
-}
-
-function expandPreviewVideo() {
-  const video = $('previewVideo');
-  if (!video) return;
-  if (video.requestFullscreen) {
-    video.requestFullscreen().catch(() => setExpandedVideo(video));
-  } else if (video.webkitEnterFullscreen) {
-    try { video.webkitEnterFullscreen(); } catch (_) { setExpandedVideo(video); }
+  const kind = post.mediaType;
+  if (kind === 'video' || kind === 'video_note') {
+    video.src = cached; video.hidden = false;
+    video.play().catch(() => {});
+  } else if (kind === 'audio' || kind === 'voice') {
+    audio.src = cached; audio.hidden = false;
   } else {
-    setExpandedVideo(video);
+    img.src = cached; img.hidden = false;
   }
 }
-
-function setExpandedVideo(video) {
-  video.classList.toggle('is-expanded');
-  if (video.classList.contains('is-expanded')) video.play().catch(() => {});
-}
-
-$('closePreview').addEventListener('click', closePreview);
-$('previewModal').addEventListener('click', (e) => {
-  if (e.target === $('previewModal')) closePreview();
-});
 
 $('closePhotoModal').addEventListener('click', closePhotoModal);
 
@@ -1343,27 +1296,11 @@ $('photoModal').addEventListener('click', (e) => {
   if (e.target === $('photoModal')) closePhotoModal();
 });
 
-// делегирование кликов по превью фото
+// делегирование кликов по превью: фото, видео, аудио и текст открывают одно окно
 document.addEventListener('click', (e) => {
-  const photoContainer = e.target.closest('[data-viewphoto], [data-preview]');
-  if (photoContainer) {
-    const postId = +(photoContainer.dataset.viewphoto || photoContainer.dataset.preview);
-    if (photoContainer.dataset.preview) {
-      openPreview(postId);
-      return;
-    }
-    // если фото ещё не загружено, пробуем загрузить
-    if (!photoCache[postId]) {
-      api('photo', { postId }).then(res => {
-        photoCache[postId] = res.dataUrl;
-        const imgs = document.querySelectorAll(`img[data-photo="${postId}"]`);
-        imgs.forEach(img => img.src = res.dataUrl);
-        openPhotoModal(postId);
-      }).catch(() => toast('Не удалось загрузить фото', true));
-    } else {
-      openPhotoModal(postId);
-    }
-  }
+  const target = e.target.closest('[data-preview]');
+  if (!target) return;
+  openMediaModal(+target.dataset.preview);
 });
 
 if (!initData) {

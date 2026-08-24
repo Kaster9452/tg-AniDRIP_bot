@@ -134,6 +134,7 @@ def serialize(post, tz: ZoneInfo, now_local: datetime) -> dict:
         "initials": initials_of(post),
         "avatarColor": avatar_color(post["user_id"]),
         "preview": preview_of(post),
+        "text": (post["content_html"] or "").strip(),
         "media": MEDIA_LABELS.get(post["content_type"]),
         "hasPhoto": post["content_type"] == "photo" and bool(post["file_id"]),
         "hasMedia": bool(post["file_id"]),
