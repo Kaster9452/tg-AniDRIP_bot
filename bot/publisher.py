@@ -33,6 +33,22 @@ _INPUT_MEDIA_TYPES = {
     "audio": InputMediaAudio,
 }
 
+_SEND_METHODS = {
+    "photo": "send_photo",
+    "video": "send_video",
+    "document": "send_document",
+    "audio": "send_audio",
+    "animation": "send_animation",
+    "voice": "send_voice",
+}
+
+
+async def _send_by_file_id(
+    bot: Bot, chat_id: int, content_type: str, file_id: str, caption: str | None
+):
+    method = getattr(bot, _SEND_METHODS[content_type])
+    return await method(chat_id, file_id, caption=caption)
+
 
 class PublishError(RuntimeError):
     """Не удалось опубликовать пост в канал."""
@@ -100,12 +116,19 @@ async def publish_post(
 
         elif content_type in CAPTIONABLE_TYPES:
             caption = f"{body}{suffix}".strip() or None
-            sent = await bot.copy_message(
-                chat_id=channel_id,
-                from_chat_id=post["user_id"],
-                message_id=post["user_message_id"],
-                caption=caption,
-            )
+            # file_id уже есть на самом посте (в т.ч. у своих постов и после
+            # редактирования медиа), а исходное сообщение автора могло исчезнуть.
+            if post["file_id"]:
+                sent = await _send_by_file_id(
+                    bot, channel_id, content_type, post["file_id"], caption
+                )
+            else:
+                sent = await bot.copy_message(
+                    chat_id=channel_id,
+                    from_chat_id=post["user_id"],
+                    message_id=post["user_message_id"],
+                    caption=caption,
+                )
 
         else:
             # Стикеры, геолокация и подобное подпись не поддерживают —
