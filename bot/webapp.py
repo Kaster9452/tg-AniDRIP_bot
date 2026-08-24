@@ -828,22 +828,30 @@ async def handle_own(request: web.Request) -> web.Response:
 
     items = _decode_files_payload(raw_files)
 
-    try:
-        day_offset = int(payload.get("day", 0))
-    except (TypeError, ValueError) as exc:
-        raise ApiError("Не выбран день") from exc
-    if day_offset not in range(len(DAY_NAMES)):
-        raise ApiError("Не выбран день")
+    raw_when = str(payload.get("when", "")).strip()
+    if raw_when:
+        try:
+            when = parse_when(raw_when, tz)
+        except TimeParseError as exc:
+            raise ApiError(str(exc)) from exc
+    else:
+        try:
+            day_offset = int(payload.get("day", 0))
+        except (TypeError, ValueError) as exc:
+            raise ApiError("Не выбран день") from exc
+        if day_offset not in range(len(DAY_NAMES)):
+            raise ApiError("Не выбран день")
 
-    raw_time = str(payload.get("time", ""))
-    try:
-        hour = int(raw_time.split(":")[0])
-    except (ValueError, IndexError) as exc:
-        raise ApiError("Не выбрано время") from exc
-    if hour not in SLOT_HOURS:
-        raise ApiError("Такого слота нет в сетке")
+        raw_time = str(payload.get("time", ""))
+        try:
+            hour = int(raw_time.split(":")[0])
+        except (ValueError, IndexError) as exc:
+            raise ApiError("Не выбрано время") from exc
+        if hour not in SLOT_HOURS:
+            raise ApiError("Такого слота нет в сетке")
 
-    when = resolve_slot(tz, now_local, day_offset, hour)
+        when = resolve_slot(tz, now_local, day_offset, hour)
+
     if when <= now_local:
         raise ApiError("Это время уже прошло")
 
@@ -891,7 +899,7 @@ async def handle_own(request: web.Request) -> web.Response:
     return web.json_response(
         {
             "ok": True,
-            "message": f"Пост #{post_id} встанет в {hour:02d}:00, {DAY_NAMES[day_offset]}",
+            "message": f"Пост #{post_id} встанет на {format_when(when, tz)}",
         }
     )
 

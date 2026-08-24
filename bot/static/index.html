@@ -488,6 +488,7 @@ body{
     <div class="own-label" style="margin-top:18px"><b>Когда</b><span>сетка канала, каждые два часа</span></div>
     <div class="days" id="ownDays" role="group" aria-label="День публикации"></div>
     <div class="grid" id="ownGrid" role="group" aria-label="Время публикации"></div>
+    <input class="field" id="ownWhen" style="margin-top:10px" placeholder="или своё: 25.08 20:00, +2ч, завтра 09:00">
     <p class="own-hint"><b>Жёлтым</b> — слоты, где уже стоит пост из очереди. Выбрать можно и их: посты уйдут подряд.</p>
   </div>
   <div class="own-foot">
@@ -1260,11 +1261,13 @@ function renderOwnFoot() {
   const btn = $('ownGo');
   const text = $('ownText').value.trim();
   const day = ownDays[ownDay];
+  const customWhen = $('ownWhen').value.trim();
   const hasContent = !!text || ownFiles.length > 0;
-  btn.disabled = !ownSlot || !hasContent || busy;
-  btn.textContent = ownSlot && day
-    ? `Отложить на ${ownSlot}, ${day.name}`
-    : (!hasContent ? 'Напишите текст или прикрепите файл' : 'Выберите время');
+  btn.disabled = (!ownSlot && !customWhen) || !hasContent || busy;
+  btn.textContent = !hasContent ? 'Напишите текст или прикрепите файл'
+    : ownSlot && day ? `Отложить на ${ownSlot}, ${day.name}`
+    : customWhen ? `Отложить на ${customWhen}`
+    : 'Выберите время';
 }
 
 function renderOwn() {
@@ -1298,21 +1301,28 @@ function closeOwn() {
 
 async function submitOwn() {
   const text = $('ownText').value.trim();
-  if ((!text && !ownFiles.length) || !ownSlot || busy) return;
+  const customWhen = $('ownWhen').value.trim();
+  if ((!text && !ownFiles.length) || (!ownSlot && !customWhen) || busy) return;
 
   busy = true;
   renderOwnFoot();
   try {
-    const res = await api('own', {
+    const payload = {
       text,
-      day: ownDay,
-      time: ownSlot,
       files: ownFiles.map(f => ({ dataUrl: f.dataUrl, type: f.type }))
-    });
+    };
+    if (ownSlot) {
+      payload.day = ownDay;
+      payload.time = ownSlot;
+    } else {
+      payload.when = customWhen;
+    }
+    const res = await api('own', payload);
     haptic('success');
     toast(res.message || 'Отложено');
     $('ownText').value = '';
     $('ownCount').textContent = '0';
+    $('ownWhen').value = '';
     ownFiles = [];
     renderOwnFiles();
     ownSlot = null;
@@ -1343,6 +1353,14 @@ $('ownText').addEventListener('input', (e) => {
   renderOwnFoot();
 });
 
+$('ownWhen').addEventListener('input', (e) => {
+  if (e.target.value.trim() && ownSlot) {
+    ownSlot = null;
+    renderOwnGrid();
+  }
+  renderOwnFoot();
+});
+
 $('ownSheet').addEventListener('click', (e) => {
   const removeBtn = e.target.closest('[data-remove-own-file]');
   if (removeBtn) {
@@ -1361,6 +1379,7 @@ $('ownSheet').addEventListener('click', (e) => {
   const slotBtn = e.target.closest('[data-ownslot]');
   if (slotBtn && !slotBtn.disabled) {
     ownSlot = slotBtn.dataset.ownslot === ownSlot ? null : slotBtn.dataset.ownslot;
+    if (ownSlot) $('ownWhen').value = '';
     renderOwn();
   }
 });
