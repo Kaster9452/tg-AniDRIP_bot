@@ -287,8 +287,11 @@ body{
 .mini{background:var(--slate);border:1px solid var(--haze);border-radius:14px;padding:11px 12px}
 .mini-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
 .mini-who{font-size:12px;font-weight:600}
-.mini-mode{margin-left:auto;font-size:10px;color:var(--mist);border:1px solid var(--haze);
+.mini-badges{margin-left:auto;display:flex;align-items:center;gap:6px}
+.mini-mode{font-size:10px;color:var(--mist);border:1px solid var(--haze);
   border-radius:6px;padding:2px 6px;white-space:nowrap}
+.mini-admin{font-size:10px;color:var(--mist);border:1px solid var(--haze);
+  border-radius:6px;padding:2px 6px;white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis}
 .mini-text{font-size:12.5px;color:#C9C4DA;line-height:1.45;word-break:break-word}
 .mini-acts{display:flex;gap:12px;margin-top:10px;flex-wrap:wrap}
 .link{background:none;border:0;cursor:pointer;padding:0;font-family:'Manrope',sans-serif;
@@ -797,9 +800,11 @@ function renderQueue() {
       <div class="mini">
         <div class="mini-row">
           <span class="mini-who">#${p.id} ${p.own ? '· свой пост' : 'от ' + esc(p.author)}</span>
-          <span class="mini-mode">${p.signed ? 'с подписью' : 'анонимно'}</span>
+          <span class="mini-badges">
+            ${p.scheduledBy ? `<span class="mini-admin" title="Отложил: ${esc(p.scheduledBy)}">${esc(p.scheduledBy)}</span>` : ''}
+            <span class="mini-mode">${p.signed ? 'с подписью' : 'анонимно'}</span>
+          </span>
         </div>
-        ${p.scheduledBy ? `<div class="mini-who" style="opacity:.65;margin-top:-4px">отложил ${esc(p.scheduledBy)}</div>` : ''}
         ${p.hasPhoto
           ? `<div class="media media-photo" data-preview="${p.id}"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}">${p.albumCount > 1 ? `<span class="media-label">Альбом · ${p.albumCount}</span>` : ''}</div>`
           : p.hasMediaThumb
