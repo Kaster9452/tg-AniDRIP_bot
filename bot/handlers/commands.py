@@ -12,7 +12,7 @@ from aiogram.types import (
 )
 
 from bot import database as db
-from bot.handlers.callbacks import is_group_admin
+from bot.handlers.callbacks import admin_label, is_group_admin
 from bot.keyboards import main_keyboard, scheduled_keyboard
 from bot.publisher import PublishError, publish_post
 from bot.timeparse import TimeParseError, format_when, parse_when
@@ -99,7 +99,8 @@ async def cmd_queue(message: Message, tz: ZoneInfo) -> None:
     for post in posts:
         signature = "с подписью" if post["with_attribution"] else "анонимно"
         when = format_when(post["scheduled_at"], tz)
-        lines.append(f"{describe(post, tz)}\n→ {when} ({signature})\n")
+        who = f" · отложил {post['scheduled_by']}" if post["scheduled_by"] else ""
+        lines.append(f"{describe(post, tz)}\n→ {when} ({signature}){who}\n")
     await message.reply("\n".join(lines))
 
 
@@ -213,7 +214,10 @@ async def cmd_reschedule(
         return
 
     await db.mark_scheduled(
-        post_id, when.astimezone(timezone.utc), post["with_attribution"]
+        post_id,
+        when.astimezone(timezone.utc),
+        post["with_attribution"],
+        admin_label(message.from_user),
     )
     if post["admin_chat_id"] and post["admin_message_id"]:
         try:

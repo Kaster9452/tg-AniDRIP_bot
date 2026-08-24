@@ -18,7 +18,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message
 
 from bot import database as db
-from bot.handlers.callbacks import is_group_admin
+from bot.handlers.callbacks import admin_label, is_group_admin
 from bot.keyboards import SlotCB, own_slots_keyboard
 from bot.slots import DAY_NAMES, OWN_TEXT_LIMIT, build_days, resolve_slot
 from bot.timeparse import format_when
@@ -180,6 +180,7 @@ async def on_slot(
         author_username=query.from_user.username,
         content_html=text,
         scheduled_at=when.astimezone(timezone.utc),
+        scheduled_by=admin_label(query.from_user),
     )
     await state.clear()
 

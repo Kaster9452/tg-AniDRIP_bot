@@ -65,6 +65,9 @@ ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_group TEXT;
 -- Нужно, чтобы такие посты не попадали в список «Люди» и были подписаны иначе.
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS is_own BOOLEAN NOT NULL DEFAULT FALSE;
 
+-- Кто из админов поставил пост в очередь — показывается в панели и в /queue.
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS scheduled_by TEXT;
+
 CREATE TABLE IF NOT EXISTS banned_users (
     user_id   BIGINT PRIMARY KEY,
     username  TEXT,
@@ -191,6 +194,7 @@ async def create_own_post(
     content_type: str = "text",
     file_id: str | None = None,
     media_group: list[dict] | None = None,
+    scheduled_by: str | None = None,
 ) -> int:
     """Пост, который админ написал сам в панели, сразу встаёт в очередь.
 
@@ -203,8 +207,8 @@ async def create_own_post(
             """
             INSERT INTO posts (user_id, user_message_id, author_name, author_username,
                                content_type, content_html, file_id, media_group, status,
-                               scheduled_at, with_attribution, is_own)
-            VALUES ($1, 0, $2, $3, $4, $5, $6, $7, 'scheduled', $8, FALSE, TRUE)
+                               scheduled_at, with_attribution, is_own, scheduled_by)
+            VALUES ($1, 0, $2, $3, $4, $5, $6, $7, 'scheduled', $8, FALSE, TRUE, $9)
             RETURNING id
             """,
             user_id,
@@ -215,6 +219,7 @@ async def create_own_post(
             file_id,
             json.dumps(media_group) if media_group else None,
             scheduled_at,
+            scheduled_by,
         )
 
 
@@ -258,7 +263,10 @@ async def mark_published(
 
 
 async def mark_scheduled(
-    post_id: int, scheduled_at: datetime, with_attribution: bool
+    post_id: int,
+    scheduled_at: datetime,
+    with_attribution: bool,
+    scheduled_by: str | None = None,
 ) -> None:
     pool = _require_pool()
     async with pool.acquire() as conn:
@@ -267,12 +275,14 @@ async def mark_scheduled(
             UPDATE posts
                SET status = 'scheduled',
                    scheduled_at = $2,
-                   with_attribution = $3
+                   with_attribution = $3,
+                   scheduled_by = $4
              WHERE id = $1
             """,
             post_id,
             scheduled_at,
             with_attribution,
+            scheduled_by,
         )
 
 

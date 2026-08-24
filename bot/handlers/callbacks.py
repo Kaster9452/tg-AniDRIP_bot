@@ -47,6 +47,9 @@ async def is_group_admin(bot: Bot, chat_id: int, user_id: int) -> bool:
         return False
     return member.status in ("creator", "administrator")
 
+def admin_label(user) -> str:
+    """Имя админа для отображения в очереди — кто отложил пост."""
+    return f"@{user.username}" if user.username else user.full_name
 
 async def _guard(query: CallbackQuery, bot: Bot, post_id: int):
     """Общая проверка: права админа и состояние поста.
@@ -196,7 +199,10 @@ async def on_schedule_slot(
 
     with_attribution = data["with_attribution"]
     await db.mark_scheduled(
-        callback_data.post_id, when.astimezone(timezone.utc), with_attribution
+        callback_data.post_id,
+        when.astimezone(timezone.utc),
+        with_attribution,
+        admin_label(query.from_user),
     )
     await state.clear()
 
@@ -263,7 +269,9 @@ async def on_time_entered(
     with_attribution = data["with_attribution"]
     await state.clear()
 
-    await db.mark_scheduled(post_id, when.astimezone(timezone.utc), with_attribution)
+    await db.mark_scheduled(
+        post_id, when.astimezone(timezone.utc), with_attribution, admin_label(message.from_user)
+    )
 
     post = await db.get_post(post_id)
     if post and post["admin_chat_id"] and post["admin_message_id"]:

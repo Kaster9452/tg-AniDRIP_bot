@@ -252,6 +252,7 @@ def serialize(post, tz: ZoneInfo, now_local: datetime) -> dict:
         "submittedDay": day_label(created, now_local),
         "signed": bool(post["with_attribution"]),
         "own": bool(post["is_own"]),
+        "scheduledBy": post["scheduled_by"] or "",
     }
     if post["scheduled_at"]:
         moment = post["scheduled_at"].astimezone(tz)
@@ -431,7 +432,7 @@ async def handle_publish(request: web.Request) -> web.Response:
 
 async def handle_schedule(request: web.Request) -> web.Response:
     payload = await read_payload(request)
-    await authorize(request, payload)
+    admin = await authorize(request, payload)
 
     config: Config = request.app["config"]
     bot: Bot = request.app["bot"]
@@ -451,7 +452,9 @@ async def handle_schedule(request: web.Request) -> web.Response:
         raise ApiError("Это время уже прошло")
 
     signed = bool(payload.get("signed"))
-    await db.mark_scheduled(post["id"], when.astimezone(timezone.utc), signed)
+    await db.mark_scheduled(
+        post["id"], when.astimezone(timezone.utc), signed, author_of_admin(admin)
+    )
     await set_scheduled_buttons(bot, post)
 
     return web.json_response(
@@ -875,6 +878,7 @@ async def handle_own(request: web.Request) -> web.Response:
         content_type=content_type,
         file_id=file_id,
         media_group=media_group,
+        scheduled_by=author_of_admin(admin),
     )
 
     await notify_group(

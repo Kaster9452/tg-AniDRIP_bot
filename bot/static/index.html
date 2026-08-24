@@ -799,6 +799,7 @@ function renderQueue() {
           <span class="mini-who">#${p.id} ${p.own ? '· свой пост' : 'от ' + esc(p.author)}</span>
           <span class="mini-mode">${p.signed ? 'с подписью' : 'анонимно'}</span>
         </div>
+        ${p.scheduledBy ? `<div class="mini-who" style="opacity:.65;margin-top:-4px">отложил ${esc(p.scheduledBy)}</div>` : ''}
         ${p.hasPhoto
           ? `<div class="media media-photo" data-preview="${p.id}"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}">${p.albumCount > 1 ? `<span class="media-label">Альбом · ${p.albumCount}</span>` : ''}</div>`
           : p.hasMediaThumb
