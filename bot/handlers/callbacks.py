@@ -127,18 +127,10 @@ async def on_schedule_requested(
     await state.set_state(ScheduleStates.waiting_for_time)
     await state.update_data(post_id=post["id"], with_attribution=with_attribution)
     days = build_days(tz, datetime.now(tz), await db.get_scheduled_posts())
-    await query.message.reply(
-        f"🕓 Когда опубликовать пост #{post['id']}?\n\n"
-        f"Напишите время ответным сообщением. Примеры:\n"
-        f"<code>18:30</code> — сегодня в 18:30\n"
-        f"<code>завтра 09:00</code>\n"
-        f"<code>25.08 20:00</code>\n"
-        f"<code>+2ч</code> — через два часа\n\n"
-        f"Выберите время кнопкой ниже или введите его вручную.\n"
-        f"Для отмены напишите <code>отмена</code>.",
-        reply_markup=schedule_slots_keyboard(days, 0, post["id"]),
+    await query.message.edit_reply_markup(
+        reply_markup=schedule_slots_keyboard(days, 0, post["id"])
     )
-    await query.answer()
+    await query.answer("Выберите день и время публикации")
 
 
 @router.callback_query(ScheduleSlotCB.filter(F.action == "day"))
@@ -219,11 +211,12 @@ async def on_schedule_slot(
             logger.debug("Не удалось обновить кнопки у поста %s", callback_data.post_id)
 
     signature = "с подписью" if with_attribution else "анонимно"
-    await query.message.edit_text(
-        f"🕓 Пост #{callback_data.post_id} запланирован на "
-        f"<b>{format_when(when, tz)}</b> ({signature})."
+    await query.message.edit_reply_markup(
+        reply_markup=scheduled_keyboard(callback_data.post_id)
     )
-    await query.answer("Запланировано")
+    await query.answer(
+        f"Запланировано на {format_when(when, tz)} ({signature})", show_alert=True
+    )
 
 
 @router.callback_query(ScheduleSlotCB.filter(F.action == "stop"))
@@ -236,8 +229,10 @@ async def on_schedule_stop(
         return
 
     await state.clear()
-    await query.message.edit_text("Отложенная публикация отменена.")
-    await query.answer()
+    await query.message.edit_reply_markup(
+        reply_markup=main_keyboard(callback_data.post_id)
+    )
+    await query.answer("Выбор времени отменён")
 
 
 @router.message(ScheduleStates.waiting_for_time)
