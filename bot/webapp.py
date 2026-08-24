@@ -73,6 +73,75 @@ def _decode_data_url(data_url: str) -> bytes | None:
         return None
 
 
+def _decode_files_payload(raw_files: object) -> list[tuple[str, bytes]]:
+    """Разбирает и проверяет список файлов, присланных панелью как base64."""
+    if not isinstance(raw_files, list):
+        raise ApiError("Некорректный список файлов")
+
+    items: list[tuple[str, bytes]] = []
+    total_bytes = 0
+    for entry in raw_files:
+        if not isinstance(entry, dict):
+            raise ApiError("Некорректный файл")
+        kind = entry.get("type")
+        if kind not in ("photo", "video"):
+            raise ApiError("Поддерживаются только фото и видео")
+        raw = _decode_data_url(str(entry.get("dataUrl", "")))
+        if not raw:
+            raise ApiError("Не удалось прочитать один из файлов")
+        if len(raw) > OWN_FILE_MAX_BYTES:
+            raise ApiError(
+                f"Файл слишком большой: максимум {OWN_FILE_MAX_BYTES // (1024 * 1024)} МБ"
+            )
+        total_bytes += len(raw)
+        if total_bytes > OWN_FILES_MAX_TOTAL_BYTES:
+            raise ApiError(
+                f"Суммарный размер файлов больше {OWN_FILES_MAX_TOTAL_BYTES // (1024 * 1024)} МБ"
+            )
+        items.append((kind, raw))
+    return items
+
+
+async def _mint_file_ids(
+    bot: Bot, chat_id: int, items: list[tuple[str, bytes]], caption: str | None
+) -> list[dict]:
+    """Отправляет сырые файлы в Telegram, чтобы получить их file_id.
+
+    Публикация хранит только file_id, а не байты, поэтому любой новый файл
+    сперва нужно один раз отправить ботом — сюда, в группу админов.
+    """
+    if not items:
+        return []
+
+    if len(items) == 1:
+        kind, raw = items[0]
+        input_file = BufferedInputFile(
+            raw, filename="photo.jpg" if kind == "photo" else "video.mp4"
+        )
+        if kind == "photo":
+            sent = await bot.send_photo(chat_id, input_file, caption=caption)
+            file_id = sent.photo[-1].file_id
+        else:
+            sent = await bot.send_video(chat_id, input_file, caption=caption)
+            file_id = sent.video.file_id
+        return [{"type": kind, "file_id": file_id}]
+
+    media = []
+    for index, (kind, raw) in enumerate(items):
+        input_file = BufferedInputFile(
+            raw, filename=f"{kind}{index}.{'jpg' if kind == 'photo' else 'mp4'}"
+        )
+        cls = InputMediaVideo if kind == "video" else InputMediaPhoto
+        media.append(cls(media=input_file, caption=caption if index == 0 else None))
+    sent_list = await bot.send_media_group(chat_id, media=media)
+
+    result = []
+    for (kind, _), sent in zip(items, sent_list):
+        fid = sent.photo[-1].file_id if kind == "photo" else sent.video.file_id
+        result.append({"type": kind, "file_id": fid})
+    return result
+
+
 # --- вспомогательное форматирование для интерфейса --------------------------
 
 
@@ -404,22 +473,77 @@ async def handle_cancel(request: web.Request) -> web.Response:
     return web.json_response({"ok": True, "message": "Снято с публикации"})
 
 
-async def handle_edit_text(request: web.Request) -> web.Response:
-    """Меняет текст/подпись уже отложенного поста без пересылки заново."""
+async def handle_edit_post(request: web.Request) -> web.Response:
+    """Меняет текст и состав файлов уже отложенного поста без пересылки заново."""
     payload = await read_payload(request)
     await authorize(request, payload)
+
+    bot: Bot = request.app["bot"]
+    config: Config = request.app["config"]
 
     post = await load_post(post_id_from(payload))
     if post["status"] != "scheduled":
         raise ApiError("Редактировать можно только отложенные посты")
 
+    existing: list[dict] = []
+    if post["media_group"]:
+        existing = json.loads(post["media_group"])
+    elif post["file_id"]:
+        existing = [{"type": post["content_type"], "file_id": post["file_id"]}]
+
+    raw_keep = payload.get("keepIndexes")
+    if raw_keep is None:
+        keep_indexes = set(range(len(existing)))
+    elif isinstance(raw_keep, list):
+        try:
+            keep_indexes = {int(i) for i in raw_keep}
+        except (TypeError, ValueError) as exc:
+            raise ApiError("Некорректный список файлов") from exc
+    else:
+        raise ApiError("Некорректный список файлов")
+
+    kept_items = [item for i, item in enumerate(existing) if i in keep_indexes]
+    new_raw_items = _decode_files_payload(payload.get("newFiles") or [])
+
+    if len(kept_items) + len(new_raw_items) > OWN_FILES_LIMIT:
+        raise ApiError(f"Не больше {OWN_FILES_LIMIT} файлов в одном посте")
+
     text = str(payload.get("text", "")).strip()
-    limit = OWN_TEXT_LIMIT if post["content_type"] == "text" else CAPTION_TEXT_LIMIT
+    if not text and not kept_items and not new_raw_items:
+        raise ApiError("Нужен текст или хотя бы один файл")
+
+    limit = OWN_TEXT_LIMIT if not (kept_items or new_raw_items) else CAPTION_TEXT_LIMIT
     if len(text) > limit:
         raise ApiError(f"Слишком длинный текст: максимум {limit} символов")
 
-    await db.update_post_text(post["id"], html.escape(text))
-    return web.json_response({"ok": True, "message": "Текст обновлён"})
+    content_html = html.escape(text)
+
+    new_items: list[dict] = []
+    if new_raw_items:
+        try:
+            new_items = await _mint_file_ids(
+                bot, config.admin_group_id, new_raw_items, content_html or None
+            )
+        except Exception as exc:
+            logger.exception("Не удалось загрузить новые файлы для поста %s", post["id"])
+            raise ApiError(f"Не удалось загрузить файлы: {exc}", status=502) from exc
+
+    final_items = kept_items + new_items
+
+    if not final_items:
+        content_type, file_id, media_thumb_id, media_group = "text", None, None, None
+    else:
+        content_type = final_items[0]["type"]
+        file_id = final_items[0]["file_id"]
+        # Миниатюра привязана к исходному первому элементу — если его убрали,
+        # показывать чужую миниатюру нельзя.
+        media_thumb_id = post["media_thumb_id"] if (0 in keep_indexes and kept_items) else None
+        media_group = final_items if len(final_items) > 1 else None
+
+    await db.update_post_media(
+        post["id"], content_html, content_type, file_id, media_thumb_id, media_group
+    )
+    return web.json_response({"ok": True, "message": "Изменения сохранены"})
 
 
 async def handle_reject(request: web.Request) -> web.Response:
@@ -692,8 +816,6 @@ async def handle_own(request: web.Request) -> web.Response:
 
     text = str(payload.get("text", "")).strip()
     raw_files = payload.get("files") or []
-    if not isinstance(raw_files, list):
-        raise ApiError("Некорректный список файлов")
     if not text and not raw_files:
         raise ApiError("Напишите текст или прикрепите фото/видео")
     if len(text) > OWN_TEXT_LIMIT:
@@ -701,27 +823,7 @@ async def handle_own(request: web.Request) -> web.Response:
     if len(raw_files) > OWN_FILES_LIMIT:
         raise ApiError(f"Не больше {OWN_FILES_LIMIT} файлов в одном посте")
 
-    items: list[tuple[str, bytes]] = []
-    total_bytes = 0
-    for entry in raw_files:
-        if not isinstance(entry, dict):
-            raise ApiError("Некорректный файл")
-        kind = entry.get("type")
-        if kind not in ("photo", "video"):
-            raise ApiError("Поддерживаются только фото и видео")
-        raw = _decode_data_url(str(entry.get("dataUrl", "")))
-        if not raw:
-            raise ApiError("Не удалось прочитать один из файлов")
-        if len(raw) > OWN_FILE_MAX_BYTES:
-            raise ApiError(
-                f"Файл слишком большой: максимум {OWN_FILE_MAX_BYTES // (1024 * 1024)} МБ"
-            )
-        total_bytes += len(raw)
-        if total_bytes > OWN_FILES_MAX_TOTAL_BYTES:
-            raise ApiError(
-                f"Суммарный размер файлов больше {OWN_FILES_MAX_TOTAL_BYTES // (1024 * 1024)} МБ"
-            )
-        items.append((kind, raw))
+    items = _decode_files_payload(raw_files)
 
     try:
         day_offset = int(payload.get("day", 0))
@@ -753,44 +855,16 @@ async def handle_own(request: web.Request) -> web.Response:
     if items:
         # Файл отправляется в группу админов, чтобы получить его Telegram file_id
         # для дальнейшей публикации — сами байты в базе не храним.
-        caption = content_html or None
         try:
-            if len(items) == 1:
-                kind, raw = items[0]
-                input_file = BufferedInputFile(
-                    raw, filename="photo.jpg" if kind == "photo" else "video.mp4"
-                )
-                if kind == "photo":
-                    sent = await bot.send_photo(
-                        config.admin_group_id, input_file, caption=caption
-                    )
-                    file_id = sent.photo[-1].file_id
-                else:
-                    sent = await bot.send_video(
-                        config.admin_group_id, input_file, caption=caption
-                    )
-                    file_id = sent.video.file_id
-                content_type = kind
-            else:
-                media = []
-                for index, (kind, raw) in enumerate(items):
-                    input_file = BufferedInputFile(
-                        raw, filename=f"{kind}{index}.{'jpg' if kind == 'photo' else 'mp4'}"
-                    )
-                    cls = InputMediaVideo if kind == "video" else InputMediaPhoto
-                    media.append(
-                        cls(media=input_file, caption=caption if index == 0 else None)
-                    )
-                sent_list = await bot.send_media_group(config.admin_group_id, media=media)
-                media_group = []
-                for (kind, _), sent in zip(items, sent_list):
-                    fid = sent.photo[-1].file_id if kind == "photo" else sent.video.file_id
-                    media_group.append({"type": kind, "file_id": fid})
-                file_id = media_group[0]["file_id"]
-                content_type = media_group[0]["type"]
+            minted = await _mint_file_ids(
+                bot, config.admin_group_id, items, content_html or None
+            )
         except Exception as exc:
             logger.exception("Не удалось отправить файлы своего поста")
             raise ApiError(f"Не удалось отправить файлы: {exc}", status=502) from exc
+        file_id = minted[0]["file_id"]
+        content_type = minted[0]["type"]
+        media_group = minted if len(minted) > 1 else None
 
     post_id = await db.create_own_post(
         user_id=int(admin["id"]),
@@ -901,7 +975,7 @@ def build_app(bot: Bot, config: Config) -> web.Application:
     app.router.add_post("/api/publish", handle_publish)
     app.router.add_post("/api/schedule", handle_schedule)
     app.router.add_post("/api/cancel", handle_cancel)
-    app.router.add_post("/api/edit-text", handle_edit_text)
+    app.router.add_post("/api/edit-post", handle_edit_post)
     app.router.add_post("/api/reject", handle_reject)
     app.router.add_post("/api/people", handle_people)
     app.router.add_post("/api/ban", handle_ban)

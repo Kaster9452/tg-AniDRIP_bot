@@ -285,14 +285,33 @@ async def mark_cancelled(post_id: int) -> None:
         )
 
 
-async def update_post_text(post_id: int, content_html: str) -> None:
-    """Меняет текст отложенного поста без пересылки заново."""
+async def update_post_media(
+    post_id: int,
+    content_html: str,
+    content_type: str,
+    file_id: str | None,
+    media_thumb_id: str | None,
+    media_group: list[dict] | None,
+) -> None:
+    """Меняет текст и состав файлов уже отложенного поста без пересылки заново."""
     pool = _require_pool()
     async with pool.acquire() as conn:
         await conn.execute(
-            "UPDATE posts SET content_html = $2 WHERE id = $1",
+            """
+            UPDATE posts
+               SET content_html = $2,
+                   content_type = $3,
+                   file_id = $4,
+                   media_thumb_id = $5,
+                   media_group = $6
+             WHERE id = $1
+            """,
             post_id,
             content_html,
+            content_type,
+            file_id,
+            media_thumb_id,
+            json.dumps(media_group) if media_group else None,
         )
 
 
