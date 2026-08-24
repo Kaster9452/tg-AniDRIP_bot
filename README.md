@@ -153,7 +153,7 @@ support_bot/
 | `ADMIN_GROUP_ID` | ID группы админов (вид `-100…`) |
 | `CHANNEL_ID` | ID канала для публикаций (вид `-100…`) |
 | `DATABASE_URL` | строка подключения к PostgreSQL |
-| `TIMEZONE` | часовой пояс, по умолчанию `Europe/Stockholm` |
+| `TIMEZONE` | часовой пояс, по умолчанию `Europe/Moscow` |
 | `WEBAPP_URL` | адрес сервиса на Render, для панели модерации |
 | `WEBAPP_SHORT_NAME` | короткое имя Mini App из BotFather, чтобы открывать панель из группы |
 | `PORT` | задаёт Render автоматически, вручную не нужна |
