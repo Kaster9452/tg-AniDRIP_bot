@@ -19,6 +19,7 @@ from aiogram.types import CallbackQuery, Message
 
 from bot import database as db
 from bot.handlers.callbacks import admin_label, is_group_admin
+from bot.handlers.user import _extract_media
 from bot.keyboards import SlotCB, own_slots_keyboard
 from bot.slots import DAY_NAMES, OWN_TEXT_LIMIT, build_days, resolve_slot
 from bot.timeparse import format_when
@@ -29,6 +30,9 @@ router = Router(name="ownpost")
 
 CANCEL_WORDS = {"отмена", "cancel", "стоп"}
 PREVIEW_LIMIT = 200
+# Telegram ограничивает подпись к медиа 1024 символами — меньше, чем обычный текст.
+CAPTION_TEXT_LIMIT = 1024
+MEDIA_LABELS = {"photo": "Фото", "video": "Видео"}
 
 
 class OwnPost(StatesGroup):
@@ -60,9 +64,19 @@ async def show_slots(
     await state.set_state(OwnPost.waiting_for_slot)
     await state.update_data(day=day_index)
 
+    plain = data.get("plain", "")
+    content_type = data.get("content_type", "text")
+    if content_type == "text":
+        summary = f"<blockquote>{preview_of(plain)}</blockquote>"
+    else:
+        label = MEDIA_LABELS.get(content_type, content_type)
+        summary = f"🖼 {label}" + (
+            f" · <blockquote>{preview_of(plain)}</blockquote>" if plain else " без подписи"
+        )
+
     await message.reply(
         f"🕓 <b>Когда публикуем?</b>\n\n"
-        f"<blockquote>{preview_of(data.get('plain', ''))}</blockquote>\n"
+        f"{summary}\n"
         f"🟡 — в слоте уже стоит свой пост, 🔴 — предложка. Ваш пост уйдёт следом.",
         reply_markup=own_slots_keyboard(days, day_index),
     )
@@ -86,42 +100,75 @@ async def cmd_mypost(
         # html_text содержит всю команду, отрезаем саму /mypost
         raw = message.html_text
         text = raw.split(maxsplit=1)[1].strip() if len(raw.split(maxsplit=1)) > 1 else ""
-        await state.update_data(text=text, plain=command.args.strip())
+        await state.update_data(
+            text=text, plain=command.args.strip(), content_type="text", file_id=None, has_draft=True
+        )
         await show_slots(message, state, tz)
         return
 
     await state.set_state(OwnPost.waiting_for_text)
     await message.reply(
         "✍️ <b>Свой пост</b>\n\n"
-        "Пришлите текст следующим сообщением — форматирование сохранится.\n"
+        "Пришлите текст, фото или видео следующим сообщением — подпись и форматирование сохранятся.\n"
         "Передумали: напишите <code>отмена</code>."
     )
 
 
 @router.message(OwnPost.waiting_for_text)
-async def on_text(message: Message, state: FSMContext, tz: ZoneInfo) -> None:
-    plain = (message.text or "").strip()
+async def on_draft(message: Message, state: FSMContext, tz: ZoneInfo) -> None:
+    content_type = message.content_type
+    plain = (message.text or message.caption or "").strip()
 
-    if plain.lower() in CANCEL_WORDS:
+    if content_type == "text" and plain.lower() in CANCEL_WORDS:
         await state.clear()
         await message.reply("Черновик отменён.")
         return
 
-    if not plain:
+    if content_type == "text":
+        if not plain:
+            await message.reply(
+                "Нужен текст, фото или видео. Другие типы файлов через чат пока не умею — "
+                "пришлите их предложкой или используйте /panel."
+            )
+            return
+        if len(plain) > OWN_TEXT_LIMIT:
+            await message.reply(
+                f"Слишком длинный текст: {len(plain)} символов, а Telegram "
+                f"пропускает {OWN_TEXT_LIMIT}."
+            )
+            return
+        await state.update_data(
+            text=message.html_text, plain=plain, content_type="text", file_id=None, has_draft=True
+        )
+        await show_slots(message, state, tz)
+        return
+
+    if content_type not in ("photo", "video"):
         await message.reply(
-            "Нужен обычный текст. Фото и файлы через чат пока не умею — "
+            "Пришлите текст, фото или видео. Другие типы файлов через чат пока не умею — "
             "пришлите их предложкой или используйте /panel."
         )
         return
 
-    if len(plain) > OWN_TEXT_LIMIT:
+    if len(plain) > CAPTION_TEXT_LIMIT:
         await message.reply(
-            f"Слишком длинный текст: {len(plain)} символов, а Telegram "
-            f"пропускает {OWN_TEXT_LIMIT}."
+            f"Слишком длинная подпись: {len(plain)} символов, а Telegram "
+            f"пропускает {CAPTION_TEXT_LIMIT}."
         )
         return
 
-    await state.update_data(text=message.html_text, plain=plain)
+    file_id, _ = _extract_media(message, content_type)
+    if not file_id:
+        await message.reply("Не получилось прочитать файл, попробуйте ещё раз.")
+        return
+
+    await state.update_data(
+        text=message.html_text if plain else "",
+        plain=plain,
+        content_type=content_type,
+        file_id=file_id,
+        has_draft=True,
+    )
     await show_slots(message, state, tz)
 
 
@@ -137,7 +184,7 @@ async def on_day(
     query: CallbackQuery, callback_data: SlotCB, state: FSMContext, tz: ZoneInfo
 ) -> None:
     data = await state.get_data()
-    if "text" not in data:
+    if not data.get("has_draft"):
         await query.answer("Черновик потерялся, начните заново: /mypost", show_alert=True)
         return
 
@@ -163,10 +210,10 @@ async def on_slot(
         return
 
     data = await state.get_data()
-    text = data.get("text")
-    if not text:
+    if not data.get("has_draft"):
         await query.answer("Черновик потерялся, начните заново: /mypost", show_alert=True)
         return
+    text = data.get("text") or ""
 
     now_local = datetime.now(tz)
     when = resolve_slot(tz, now_local, data.get("day", 0), callback_data.value)
@@ -180,6 +227,8 @@ async def on_slot(
         author_username=query.from_user.username,
         content_html=text,
         scheduled_at=when.astimezone(timezone.utc),
+        content_type=data.get("content_type", "text"),
+        file_id=data.get("file_id"),
         scheduled_by=admin_label(query.from_user),
     )
     await state.clear()
