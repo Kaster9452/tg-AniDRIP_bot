@@ -63,7 +63,7 @@ async def show_slots(
     await message.reply(
         f"🕓 <b>Когда публикуем?</b>\n\n"
         f"<blockquote>{preview_of(data.get('plain', ''))}</blockquote>\n"
-        f"🟡 — в слоте уже стоит пост, ваш уйдёт следом.",
+        f"🟡 — в слоте уже стоит свой пост, 🔴 — предложка. Ваш пост уйдёт следом.",
         reply_markup=own_slots_keyboard(days, day_index),
     )
 

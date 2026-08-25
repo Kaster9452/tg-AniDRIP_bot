@@ -112,7 +112,10 @@ def schedule_slots_keyboard(
     for slot in current["slots"]:
         if slot["state"] == "past":
             continue
-        mark = " 🟡" if slot["state"] == "taken" else ""
+        mark = ""
+        if slot["state"] == "taken":
+            # 🔴 — слот занял предложкой (не своим постом админа)
+            mark = " 🔴" if slot.get("postOwn") is False else " 🟡"
         row.append(
             InlineKeyboardButton(
                 text=f"{slot['time']}{mark}",
@@ -163,7 +166,10 @@ def own_slots_keyboard(days: list[dict], day_index: int) -> InlineKeyboardMarkup
 
     row: list[InlineKeyboardButton] = []
     for slot in free:
-        mark = " 🟡" if slot["state"] == "taken" else ""
+        mark = ""
+        if slot["state"] == "taken":
+            # 🔴 — слот занял предложкой (не своим постом админа)
+            mark = " 🔴" if slot.get("postOwn") is False else " 🟡"
         row.append(
             InlineKeyboardButton(
                 text=f"{slot['time']}{mark}",
