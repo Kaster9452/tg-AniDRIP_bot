@@ -38,13 +38,13 @@ def resolve_slot(tz: ZoneInfo, now_local: datetime, day_offset: int, hour: int) 
 
 def build_days(tz: ZoneInfo, now_local: datetime, scheduled: list) -> list[dict]:
     """Три дня по двенадцать слотов: что занято, что прошло, что свободно."""
-    taken: dict[tuple, int] = {}
+    taken: dict[tuple, dict] = {}
     for post in scheduled:
         if not post["scheduled_at"]:
             continue
         key = slot_of(post["scheduled_at"].astimezone(tz))
         # если в слоте уже что-то есть, показываем самый ранний пост
-        taken.setdefault(key, post["id"])
+        taken.setdefault(key, {"id": post["id"], "own": bool(post["is_own"])})
 
     days = []
     for offset, name in enumerate(DAY_NAMES):
@@ -52,10 +52,10 @@ def build_days(tz: ZoneInfo, now_local: datetime, scheduled: list) -> list[dict]
         slots = []
         for hour in SLOT_ORDER:
             start = datetime(date.year, date.month, date.day, hour, tzinfo=tz)
-            post_id = taken.get((date, hour))
+            occupant = taken.get((date, hour))
             if start <= now_local:
                 state = "past"
-            elif post_id:
+            elif occupant:
                 state = "taken"
             else:
                 state = "free"
@@ -64,7 +64,8 @@ def build_days(tz: ZoneInfo, now_local: datetime, scheduled: list) -> list[dict]
                     "hour": hour,
                     "time": f"{hour:02d}:00",
                     "state": state,
-                    "postId": post_id,
+                    "postId": occupant["id"] if occupant else None,
+                    "postOwn": occupant["own"] if occupant else None,
                 }
             )
         days.append(

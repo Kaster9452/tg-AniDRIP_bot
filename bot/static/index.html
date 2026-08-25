@@ -149,6 +149,9 @@ body{
 .slot.is-taken{background:#241F14;border-color:#4A3D1C}
 .slot.is-taken .slot-state{color:var(--citrus)}
 .slot.is-taken .slot-dot{background:var(--citrus)}
+.slot-tag{display:block;margin-top:2px;font-size:8px;color:var(--mist);opacity:.75;
+  text-transform:uppercase;letter-spacing:.03em;font-family:'Manrope',sans-serif}
+.step .slot-tag{font-size:7px;margin-top:1px}
 .slot:disabled{cursor:not-allowed;opacity:.4;background:var(--ink)}
 .slot:disabled .slot-dot{display:none}
 .slot[aria-pressed="true"]{background:#2E1B29;border-color:var(--rose)}
@@ -683,12 +686,13 @@ function latGridHtml(id) {
                 : chosen ? 'выбрано'
                 : taken ? 'занято #' + slot.postId
                 : 'свободно';
+    const tag = taken && slot.postOwn === false ? '<span class="slot-tag">предложка</span>' : '';
     return `
       <button class="slot ${taken ? 'is-taken' : ''}" data-latslot="${id}:${slot.time}"
               aria-pressed="${chosen}" ${past ? 'disabled' : ''}>
         ${past ? '' : '<span class="slot-dot"></span>'}
         <span class="slot-time">${slot.time}</span>
-        <span class="slot-state">${label}</span>
+        <span class="slot-state">${label}</span>${tag}
       </button>`;
   }).join('');
 }
@@ -1263,12 +1267,13 @@ function renderOwnGrid() {
                 : chosen ? 'выбрано'
                 : taken ? 'занято #' + slot.postId
                 : 'свободно';
+    const tag = taken && slot.postOwn === false ? '<span class="slot-tag">предложка</span>' : '';
     return `
       <button class="slot ${taken ? 'is-taken' : ''}" data-ownslot="${slot.time}"
               aria-pressed="${chosen}" ${past ? 'disabled' : ''}>
         ${past ? '' : '<span class="slot-dot"></span>'}
         <span class="slot-time">${slot.time}</span>
-        <span class="slot-state">${label}</span>
+        <span class="slot-state">${label}</span>${tag}
       </button>`;
   }).join('');
 }
