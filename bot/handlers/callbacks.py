@@ -310,5 +310,7 @@ async def on_cancel_scheduled(
     await query.message.edit_reply_markup(
         reply_markup=main_keyboard(callback_data.post_id)
     )
-    await query.message.reply(f"🗑 Публикация поста #{callback_data.post_id} отменена.")
+    admin_label = f"@{query.from_user.username}" if query.from_user.username else query.from_user.first_name
+    post_type_label = "Свой пост" if post.get("is_own") else "Пост"
+    await query.message.reply(f"🗑 {post_type_label} #{callback_data.post_id} снят с отложки ({admin_label}).")
     await query.answer("Отменено")

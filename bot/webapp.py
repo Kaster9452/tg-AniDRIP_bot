@@ -487,8 +487,9 @@ async def handle_schedule(request: web.Request) -> web.Response:
 
 async def handle_cancel(request: web.Request) -> web.Response:
     payload = await read_payload(request)
-    await authorize(request, payload)
+    admin = await authorize(request, payload)
 
+    config: Config = request.app["config"]
     bot: Bot = request.app["bot"]
     post = await load_post(post_id_from(payload))
     if post["status"] != "scheduled":
@@ -496,6 +497,14 @@ async def handle_cancel(request: web.Request) -> web.Response:
 
     await db.mark_cancelled(post["id"])
     await restore_admin_buttons(bot, post)
+    
+    post_type_label = "Свой пост" if post.get("is_own") else "Пост"
+    await notify_group(
+        bot,
+        config,
+        f"🗑 {post_type_label} #{post['id']} снят с отложки ({author_of_admin(admin)})."
+    )
+    
     return web.json_response({"ok": True, "message": "Снято с публикации"})
 
 
