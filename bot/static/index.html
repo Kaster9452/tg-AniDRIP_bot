@@ -30,6 +30,17 @@ body{
 }
 .wrap{max-width:520px;margin:0 auto}
 
+.access-screen{min-height:100vh;display:none;align-items:center;justify-content:center;padding:28px 24px}
+.access-box{width:min(100%,360px);text-align:center;background:var(--slate);border:1px solid var(--haze);
+  border-radius:22px;padding:30px 24px;box-shadow:0 18px 60px rgba(0,0,0,.22)}
+.access-mark{width:58px;height:58px;margin:0 auto 20px;border-radius:18px;display:grid;place-items:center;
+  color:var(--rose);background:rgba(255,92,158,.14);border:1px solid rgba(255,92,158,.28)}
+.access-mark svg{width:28px;height:28px}
+.access-title{font-family:'Unbounded',sans-serif;font-size:17px;line-height:1.35;font-weight:600}
+.access-text{margin-top:10px;color:var(--mist);font-size:13px;line-height:1.55}
+.locked .access-screen{display:flex}
+.locked > :not(.access-screen){display:none!important}
+
 .head{padding:18px 18px 12px;display:flex;align-items:flex-start;gap:12px}
 .menu-btn{margin-left:auto;display:flex;align-items:center;gap:6px;cursor:pointer;
   background:var(--slate);border:1px solid var(--haze);color:var(--bone);
@@ -393,7 +404,19 @@ body{
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
-<body>
+<body class="locked">
+
+<section class="access-screen" id="accessScreen" aria-live="polite">
+  <div class="access-box">
+    <div class="access-mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><path d="M12 14v3"/>
+      </svg>
+    </div>
+    <h1 class="access-title">Доступ ограничен</h1>
+    <p class="access-text" id="accessText">Панель доступна только администраторам.</p>
+  </div>
+</section>
 
 <div class="wrap">
   <header class="head">
@@ -544,16 +567,6 @@ function haptic(type) {
   try { tg?.HapticFeedback?.notificationOccurred(type); } catch (_) {}
 }
 
-function confirmAction(message) {
-  return new Promise((resolve) => {
-    if (tg?.showConfirm) {
-      tg.showConfirm(message, (ok) => resolve(!!ok));
-    } else {
-      resolve(window.confirm(message));
-    }
-  });
-}
-
 async function api(path, body = {}) {
   const res = await fetch('/api/' + path, {
     method: 'POST',
@@ -608,7 +621,7 @@ function renderInbox() {
       ${p.hasPhoto
         ? `<div class="media media-photo" data-preview="${p.id}"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}">${p.albumCount > 1 ? `<span class="media-label">Альбом · ${p.albumCount}</span>` : ''}</div>`
         : p.hasMediaThumb
-          ? `<div class="media media-photo" data-preview="${p.id}"><img data-media-thumb="${p.id}" alt="${esc(p.media || 'медиа')}" src="${mediaThumbCache[p.id] || ''}"><span class="media-label">${esc(p.media || 'медиа')}</span></div>`
+          ? `<div class="media media-photo" data-preview="${p.id}"><img data-media-thumb="${p.id}" alt="${esc(p.media || 'медиа')}" src="${mediaThumbCache[p.id] || ''}"><span class="media-label">${p.albumCount > 1 ? `Альбом · ${p.albumCount}` : esc(p.media || 'медиа')}</span></div>`
         : p.media ? `<div class="media" data-preview="${p.id}"><span>${esc(p.media)}</span></div>` : ''}
       ${p.preview ? `<p class="body-text" data-preview="${p.id}">${esc(p.preview)}</p>` : ''}
       <div class="actions">
@@ -800,7 +813,7 @@ function renderQueue() {
         ${p.hasPhoto
           ? `<div class="media media-photo" data-preview="${p.id}"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}">${p.albumCount > 1 ? `<span class="media-label">Альбом · ${p.albumCount}</span>` : ''}</div>`
           : p.hasMediaThumb
-            ? `<div class="media media-photo" data-preview="${p.id}"><img data-media-thumb="${p.id}" alt="${esc(p.media || 'медиа')}" src="${mediaThumbCache[p.id] || ''}"><span class="media-label">${esc(p.media || 'медиа')}</span></div>`
+            ? `<div class="media media-photo" data-preview="${p.id}"><img data-media-thumb="${p.id}" alt="${esc(p.media || 'медиа')}" src="${mediaThumbCache[p.id] || ''}"><span class="media-label">${p.albumCount > 1 ? `Альбом · ${p.albumCount}` : esc(p.media || 'медиа')}</span></div>`
           : ''}
         <p class="mini-text" data-preview="${p.id}">${p.preview ? esc(p.preview) : esc(p.media || 'без текста')}</p>
         <div class="mini-acts">
@@ -854,9 +867,6 @@ function renderLog() {
           ? `<div class="media media-photo" data-preview="${p.id}" style="height:60px;margin-bottom:6px"><img data-media-thumb="${p.id}" alt="${esc(p.media || 'медиа')}" src="${mediaThumbCache[p.id] || ''}"><span class="media-label">${esc(p.media || 'медиа')}</span></div>`
           : ''}
       <p class="done-text" data-preview="${p.id}">#${p.id} — ${esc(p.preview || p.media || 'без текста')}</p>
-      <div class="mini-acts" style="margin-top:8px">
-        <button class="link" data-delete-published="${p.id}">🗑 Удалить из канала</button>
-      </div>
     </div>
   `}).join('');
 }
@@ -1002,8 +1012,11 @@ async function loadMissingMediaThumbs() {
 async function refresh() {
   try {
     state = await api('state');
+    document.body.classList.remove('locked');
     renderAll();
   } catch (err) {
+    document.body.classList.add('locked');
+    $('accessText').textContent = err.message || 'Панель доступна только администраторам.';
     $('inbox').innerHTML = emptyBlock(err.message);
     $('queue').innerHTML = '';
     $('log').innerHTML = '';
@@ -1161,14 +1174,6 @@ document.addEventListener('click', (e) => {
 
   if (t.dataset.cancel) {
     act('cancel', { postId: +t.dataset.cancel }, 'Снято');
-    return;
-  }
-
-  if (t.dataset.deletePublished) {
-    const id = +t.dataset.deletePublished;
-    confirmAction('Удалить этот пост из канала? Отменить нельзя.').then((ok) => {
-      if (ok) act('delete-published', { postId: id }, 'Удалено из канала');
-    });
     return;
   }
 

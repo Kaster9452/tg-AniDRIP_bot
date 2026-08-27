@@ -172,7 +172,7 @@ async def on_draft(message: Message, state: FSMContext, tz: ZoneInfo) -> None:
         )
         return
 
-    file_id, _ = _extract_media(message, content_type)
+    file_id, media_thumb_id = _extract_media(message, content_type)
     if not file_id:
         await message.reply("Не получилось прочитать файл, попробуйте ещё раз.")
         return
@@ -182,6 +182,7 @@ async def on_draft(message: Message, state: FSMContext, tz: ZoneInfo) -> None:
         plain=plain,
         content_type=content_type,
         file_id=file_id,
+        media_thumb_id=media_thumb_id,
         media_group=None,
         has_draft=True,
     )
@@ -212,9 +213,9 @@ async def _process_album(messages: list[Message], state: FSMContext, tz: ZoneInf
     for message in messages:
         if message.content_type not in ("photo", "video"):
             continue
-        file_id, _ = _extract_media(message, message.content_type)
+        file_id, thumb_id = _extract_media(message, message.content_type)
         if file_id:
-            items.append({"type": message.content_type, "file_id": file_id})
+            items.append({"type": message.content_type, "file_id": file_id, "thumb": thumb_id})
     items = items[:OWN_FILES_LIMIT]
 
     if not items:
@@ -236,6 +237,7 @@ async def _process_album(messages: list[Message], state: FSMContext, tz: ZoneInf
         plain=plain,
         content_type=items[0]["type"],
         file_id=items[0]["file_id"],
+        media_thumb_id=items[0].get("thumb"),
         media_group=items if len(items) > 1 else None,
         has_draft=True,
     )
@@ -299,6 +301,7 @@ async def on_slot(
         scheduled_at=when.astimezone(timezone.utc),
         content_type=data.get("content_type", "text"),
         file_id=data.get("file_id"),
+        media_thumb_id=data.get("media_thumb_id"),
         media_group=data.get("media_group"),
         scheduled_by=admin_label(query.from_user),
     )

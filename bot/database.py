@@ -72,10 +72,6 @@ ALTER TABLE posts ADD COLUMN IF NOT EXISTS scheduled_by TEXT;
 -- (без него база бы бесконечно росла записью на каждое пересланное сообщение).
 ALTER TABLE message_map ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
--- Для альбомов send_media_group возвращает несколько ID сообщений в канале —
--- без списка всех ID «Удалить из канала» стёрло бы только первое фото альбома.
-ALTER TABLE posts ADD COLUMN IF NOT EXISTS channel_message_ids TEXT;
-
 CREATE TABLE IF NOT EXISTS banned_users (
     user_id   BIGINT PRIMARY KEY,
     username  TEXT,
@@ -215,6 +211,7 @@ async def create_own_post(
     scheduled_at: datetime,
     content_type: str = "text",
     file_id: str | None = None,
+    media_thumb_id: str | None = None,
     media_group: list[dict] | None = None,
     scheduled_by: str | None = None,
 ) -> int:
@@ -228,9 +225,9 @@ async def create_own_post(
         return await conn.fetchval(
             """
             INSERT INTO posts (user_id, user_message_id, author_name, author_username,
-                               content_type, content_html, file_id, media_group, status,
+                               content_type, content_html, file_id, media_thumb_id, media_group, status,
                                scheduled_at, with_attribution, is_own, scheduled_by)
-            VALUES ($1, 0, $2, $3, $4, $5, $6, $7, 'scheduled', $8, FALSE, TRUE, $9)
+            VALUES ($1, 0, $2, $3, $4, $5, $6, $7, $8, 'scheduled', $9, FALSE, TRUE, $10)
             RETURNING id
             """,
             user_id,
@@ -239,6 +236,7 @@ async def create_own_post(
             content_type,
             content_html,
             file_id,
+            media_thumb_id,
             json.dumps(media_group) if media_group else None,
             scheduled_at,
             scheduled_by,
@@ -264,10 +262,7 @@ async def get_post(post_id: int) -> asyncpg.Record | None:
 
 
 async def mark_published(
-    post_id: int,
-    channel_message_id: int,
-    with_attribution: bool,
-    channel_message_ids: list[int] | None = None,
+    post_id: int, channel_message_id: int, with_attribution: bool
 ) -> None:
     pool = _require_pool()
     async with pool.acquire() as conn:
@@ -277,7 +272,6 @@ async def mark_published(
                SET status = 'published',
                    published_at = NOW(),
                    channel_message_id = $2,
-                   channel_message_ids = $4,
                    with_attribution = $3,
                    scheduled_at = NULL
              WHERE id = $1
@@ -285,17 +279,6 @@ async def mark_published(
             post_id,
             channel_message_id,
             with_attribution,
-            json.dumps(channel_message_ids) if channel_message_ids else None,
-        )
-
-
-async def mark_deleted(post_id: int) -> None:
-    """Пост убрали из канала уже после публикации — повторно его не публикуем."""
-    pool = _require_pool()
-    async with pool.acquire() as conn:
-        await conn.execute(
-            "UPDATE posts SET status = 'deleted' WHERE id = $1",
-            post_id,
         )
 
 

@@ -121,10 +121,13 @@ async def _mint_file_ids(
         if kind == "photo":
             sent = await bot.send_photo(chat_id, input_file, caption=caption)
             file_id = sent.photo[-1].file_id
+            thumb_id = None
         else:
             sent = await bot.send_video(chat_id, input_file, caption=caption)
             file_id = sent.video.file_id
-        return [{"type": kind, "file_id": file_id}]
+            thumbnail = getattr(sent.video, "thumbnail", None) or getattr(sent.video, "thumb", None)
+            thumb_id = getattr(thumbnail, "file_id", None)
+        return [{"type": kind, "file_id": file_id, "thumb": thumb_id}]
 
     media = []
     for index, (kind, raw) in enumerate(items):
@@ -137,8 +140,14 @@ async def _mint_file_ids(
 
     result = []
     for (kind, _), sent in zip(items, sent_list):
-        fid = sent.photo[-1].file_id if kind == "photo" else sent.video.file_id
-        result.append({"type": kind, "file_id": fid})
+        if kind == "photo":
+            fid = sent.photo[-1].file_id
+            thumb_id = None
+        else:
+            fid = sent.video.file_id
+            thumbnail = getattr(sent.video, "thumbnail", None) or getattr(sent.video, "thumb", None)
+            thumb_id = getattr(thumbnail, "file_id", None)
+        result.append({"type": kind, "file_id": fid, "thumb": thumb_id})
     return result
 
 
@@ -224,14 +233,28 @@ def serialize(post, tz: ZoneInfo, now_local: datetime) -> dict:
     created = post["created_at"].astimezone(tz)
     album_count = None
     album_types = None
+    first_type = post["content_type"]
+    thumb_id = post["media_thumb_id"]
+    first_fid = post["file_id"]
+
     if post["media_group"]:
         try:
             album_items = json.loads(post["media_group"])
             album_count = len(album_items)
             album_types = [item.get("type", "photo") for item in album_items]
+            if album_items:
+                first_type = album_items[0].get("type", first_type)
+                first_fid = album_items[0].get("file_id", first_fid)
+                if not thumb_id:
+                    thumb_id = album_items[0].get("thumb")
         except (TypeError, ValueError):
             album_count = None
             album_types = None
+
+    has_photo = (first_type == "photo" and bool(first_fid))
+    has_media_thumb = bool(thumb_id) or (first_type in ("video", "video_note", "animation") and bool(first_fid))
+    has_media = bool(post["file_id"]) or bool(album_count)
+
     data = {
         "id": post["id"],
         "userId": post["user_id"],
@@ -240,13 +263,13 @@ def serialize(post, tz: ZoneInfo, now_local: datetime) -> dict:
         "avatarColor": avatar_color(post["user_id"]),
         "preview": preview_of(post),
         "text": (post["content_html"] or "").strip(),
-        "media": MEDIA_LABELS.get(post["content_type"]),
+        "media": MEDIA_LABELS.get(first_type, MEDIA_LABELS.get(post["content_type"])),
         "albumCount": album_count,
         "albumTypes": album_types,
-        "hasPhoto": post["content_type"] == "photo" and bool(post["file_id"]),
-        "hasMedia": bool(post["file_id"]),
-        "mediaType": post["content_type"],
-        "hasMediaThumb": bool(post["media_thumb_id"]),
+        "hasPhoto": has_photo,
+        "hasMedia": has_media,
+        "mediaType": first_type,
+        "hasMediaThumb": has_media_thumb,
         "ago": relative_ago(created, now_local),
         "submittedTime": created.strftime("%H:%M"),
         "submittedDay": day_label(created, now_local),
@@ -549,9 +572,10 @@ async def handle_edit_post(request: web.Request) -> web.Response:
     else:
         content_type = final_items[0]["type"]
         file_id = final_items[0]["file_id"]
-        # Миниатюра привязана к исходному первому элементу — если его убрали,
-        # показывать чужую миниатюру нельзя.
-        media_thumb_id = post["media_thumb_id"] if (0 in keep_indexes and kept_items) else None
+        if 0 in keep_indexes and kept_items:
+            media_thumb_id = post["media_thumb_id"]
+        else:
+            media_thumb_id = final_items[0].get("thumb")
         media_group = final_items if len(final_items) > 1 else None
 
     await db.update_post_media(
@@ -579,37 +603,6 @@ async def handle_reject(request: web.Request) -> web.Response:
     await db.mark_rejected(post["id"])
     await clear_admin_buttons(bot, post)
     return web.json_response({"ok": True, "message": "Отклонено"})
-
-
-async def handle_delete_published(request: web.Request) -> web.Response:
-    """Убирает уже опубликованный пост из канала (на случай ошибки публикации)."""
-    payload = await read_payload(request)
-    await authorize(request, payload)
-
-    bot: Bot = request.app["bot"]
-    config: Config = request.app["config"]
-
-    post = await load_post(post_id_from(payload))
-    if post["status"] != "published":
-        raise ApiError("Этот пост не опубликован")
-    if not post["channel_message_id"]:
-        raise ApiError("Не найдено сообщение в канале")
-
-    message_ids = [post["channel_message_id"]]
-    if post["channel_message_ids"]:
-        message_ids = json.loads(post["channel_message_ids"])
-
-    try:
-        if len(message_ids) > 1:
-            await bot.delete_messages(config.channel_id, message_ids)
-        else:
-            await bot.delete_message(config.channel_id, message_ids[0])
-    except Exception as exc:
-        logger.exception("Не удалось удалить пост #%s из канала", post["id"])
-        raise ApiError(f"Не удалось удалить из канала: {exc}", status=502) from exc
-
-    await db.mark_deleted(post["id"])
-    return web.json_response({"ok": True, "message": "Удалено из канала"})
 
 
 async def handle_photo(request: web.Request) -> web.Response:
@@ -696,17 +689,46 @@ async def handle_media_thumb(request: web.Request) -> web.Response:
     await authorize(request, payload)
     post = await load_post(post_id_from(payload))
     thumb_id = post["media_thumb_id"]
-    if not thumb_id:
-        raise ApiError("У этого медиа нет миниатюры", status=404)
+    if not thumb_id and post["media_group"]:
+        try:
+            items = json.loads(post["media_group"])
+            if items:
+                thumb_id = items[0].get("thumb")
+        except Exception:
+            pass
+
     bot: Bot = request.app["bot"]
-    try:
-        file = await bot.get_file(thumb_id)
-        buffer = await bot.download_file(file.file_path)
-    except Exception as exc:
-        logger.exception("Не удалось скачать миниатюру поста %s", post["id"])
-        raise ApiError("Не удалось загрузить миниатюру", status=502) from exc
-    encoded = base64.b64encode(buffer.read()).decode("ascii")
-    return web.json_response({"ok": True, "dataUrl": f"data:image/jpeg;base64,{encoded}"})
+    if thumb_id:
+        try:
+            file = await bot.get_file(thumb_id)
+            buffer = await bot.download_file(file.file_path)
+            encoded = base64.b64encode(buffer.read()).decode("ascii")
+            return web.json_response({"ok": True, "dataUrl": f"data:image/jpeg;base64,{encoded}"})
+        except Exception as exc:
+            logger.exception("Не удалось скачать миниатюру поста %s", post["id"])
+
+    # Если thumb_id нет, но это фото или первый элемент альбома — фото
+    target_fid = post["file_id"]
+    target_type = post["content_type"]
+    if post["media_group"]:
+        try:
+            items = json.loads(post["media_group"])
+            if items:
+                target_fid = items[0].get("file_id", target_fid)
+                target_type = items[0].get("type", target_type)
+        except Exception:
+            pass
+
+    if target_type == "photo" and target_fid:
+        try:
+            file = await bot.get_file(target_fid)
+            buffer = await bot.download_file(file.file_path)
+            encoded = base64.b64encode(buffer.read()).decode("ascii")
+            return web.json_response({"ok": True, "dataUrl": f"data:image/jpeg;base64,{encoded}"})
+        except Exception as exc:
+            logger.exception("Не удалось скачать фото поста %s", post["id"])
+
+    raise ApiError("У этого медиа нет миниатюры", status=404)
 
 
 # Аватарки меняются редко, а на каждый запрос панели их десятки — поэтому
@@ -910,6 +932,7 @@ async def handle_own(request: web.Request) -> web.Response:
 
     content_type = "text"
     file_id: str | None = None
+    media_thumb_id: str | None = None
     media_group: list[dict] | None = None
 
     if items:
@@ -924,6 +947,7 @@ async def handle_own(request: web.Request) -> web.Response:
             raise ApiError(f"Не удалось отправить файлы: {exc}", status=502) from exc
         file_id = minted[0]["file_id"]
         content_type = minted[0]["type"]
+        media_thumb_id = minted[0].get("thumb")
         media_group = minted if len(minted) > 1 else None
 
     post_id = await db.create_own_post(
@@ -934,6 +958,7 @@ async def handle_own(request: web.Request) -> web.Response:
         scheduled_at=when.astimezone(timezone.utc),
         content_type=content_type,
         file_id=file_id,
+        media_thumb_id=media_thumb_id,
         media_group=media_group,
         scheduled_by=author_of_admin(admin),
     )
@@ -1038,7 +1063,6 @@ def build_app(bot: Bot, config: Config) -> web.Application:
     app.router.add_post("/api/cancel", handle_cancel)
     app.router.add_post("/api/edit-post", handle_edit_post)
     app.router.add_post("/api/reject", handle_reject)
-    app.router.add_post("/api/delete-published", handle_delete_published)
     app.router.add_post("/api/people", handle_people)
     app.router.add_post("/api/ban", handle_ban)
     app.router.add_post("/api/unban", handle_unban)
