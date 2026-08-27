@@ -11,6 +11,9 @@ from aiogram.types import (
     BotCommandScopeChatAdministrators,
     BotCommandScopeDefault,
     ErrorEvent,
+    MenuButtonDefault,
+    MenuButtonWebApp,
+    WebAppInfo,
 )
 
 from bot.config import load_config
@@ -66,6 +69,35 @@ async def _setup_bot_commands(bot: Bot, admin_group_id: int) -> None:
             logging.debug("Не удалось поставить меню команд для %s", member.user.id)
 
 
+async def _setup_menu_button(bot: Bot, admin_group_id: int, webapp_url: str) -> None:
+    """Кнопка меню слева от поля ввода. Раньше она (заданная через BotFather)
+    открывала панель модерации вообще всем подряд — теперь по умолчанию она
+    ничего не открывает, а на панель ведёт только у админов лично в чате с ботом.
+    """
+    await bot.set_chat_menu_button(menu_button=MenuButtonDefault())
+
+    if not webapp_url:
+        return
+
+    admin_button = MenuButtonWebApp(
+        text="Панель", web_app=WebAppInfo(url=f"{webapp_url}/app")
+    )
+
+    try:
+        admins = await bot.get_chat_administrators(admin_group_id)
+    except Exception:
+        logging.exception("Не удалось получить список админов для кнопки меню")
+        return
+
+    for member in admins:
+        if member.user.is_bot:
+            continue
+        try:
+            await bot.set_chat_menu_button(chat_id=member.user.id, menu_button=admin_button)
+        except Exception:
+            logging.debug("Не удалось поставить кнопку меню для %s", member.user.id)
+
+
 async def main() -> None:
     logging.basicConfig(
         level=logging.INFO,
@@ -106,6 +138,11 @@ async def main() -> None:
         await _setup_bot_commands(bot, config.admin_group_id)
     except Exception:
         logging.exception("Не удалось настроить меню команд")
+
+    try:
+        await _setup_menu_button(bot, config.admin_group_id, config.webapp_url)
+    except Exception:
+        logging.exception("Не удалось настроить кнопку меню")
 
     # Эти значения aiogram передаст в обработчики как аргументы
     context = {
