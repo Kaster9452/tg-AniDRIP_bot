@@ -542,6 +542,7 @@ const $ = (id) => document.getElementById(id);
 const initData = tg?.initData || '';
 let state = { inbox: [], queue: [], log: [], stats: {}, subscribers: null, people: [] };
 let busy = false;
+const BLANK_IMG = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
 const photoCache = {}; // postId -> data:image/... — грузим фото один раз и кэшируем
 const mediaCache = {}; // postId -> data URL для предпросмотра любого медиа
 const mediaThumbCache = {}; // postId -> быстрая миниатюра медиа
@@ -619,9 +620,9 @@ function renderInbox() {
         <span class="tag">#${p.id}</span>
       </div>
       ${p.hasPhoto
-        ? `<div class="media media-photo" data-preview="${p.id}"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}">${p.albumCount > 1 ? `<span class="media-label">Альбом · ${p.albumCount}</span>` : ''}</div>`
+        ? `<div class="media media-photo" data-preview="${p.id}"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || BLANK_IMG}">${p.albumCount > 1 ? `<span class="media-label">Альбом · ${p.albumCount}</span>` : ''}</div>`
         : p.hasMediaThumb
-          ? `<div class="media media-photo" data-preview="${p.id}"><img data-media-thumb="${p.id}" alt="${esc(p.media || 'медиа')}" src="${mediaThumbCache[p.id] || ''}"><span class="media-label">${p.albumCount > 1 ? `Альбом · ${p.albumCount}` : esc(p.media || 'медиа')}</span></div>`
+          ? `<div class="media media-photo" data-preview="${p.id}"><img data-media-thumb="${p.id}" alt="${esc(p.media || 'медиа')}" src="${mediaThumbCache[p.id] || BLANK_IMG}"><span class="media-label">${p.albumCount > 1 ? `Альбом · ${p.albumCount}` : esc(p.media || 'медиа')}</span></div>`
         : p.media ? `<div class="media" data-preview="${p.id}"><span>${esc(p.media)}</span></div>` : ''}
       ${p.preview ? `<p class="body-text" data-preview="${p.id}">${esc(p.preview)}</p>` : ''}
       <div class="actions">
@@ -811,9 +812,9 @@ function renderQueue() {
           </span>
         </div>
         ${p.hasPhoto
-          ? `<div class="media media-photo" data-preview="${p.id}"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}">${p.albumCount > 1 ? `<span class="media-label">Альбом · ${p.albumCount}</span>` : ''}</div>`
+          ? `<div class="media media-photo" data-preview="${p.id}"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || BLANK_IMG}">${p.albumCount > 1 ? `<span class="media-label">Альбом · ${p.albumCount}</span>` : ''}</div>`
           : p.hasMediaThumb
-            ? `<div class="media media-photo" data-preview="${p.id}"><img data-media-thumb="${p.id}" alt="${esc(p.media || 'медиа')}" src="${mediaThumbCache[p.id] || ''}"><span class="media-label">${p.albumCount > 1 ? `Альбом · ${p.albumCount}` : esc(p.media || 'медиа')}</span></div>`
+            ? `<div class="media media-photo" data-preview="${p.id}"><img data-media-thumb="${p.id}" alt="${esc(p.media || 'медиа')}" src="${mediaThumbCache[p.id] || BLANK_IMG}"><span class="media-label">${p.albumCount > 1 ? `Альбом · ${p.albumCount}` : esc(p.media || 'медиа')}</span></div>`
           : ''}
         <p class="mini-text" data-preview="${p.id}">${p.preview ? esc(p.preview) : esc(p.media || 'без текста')}</p>
         <div class="mini-acts">
@@ -862,9 +863,9 @@ function renderLog() {
         </div>
       </div>
       ${p.hasPhoto
-        ? `<div class="media media-photo" data-preview="${p.id}" style="height:60px;margin-bottom:6px"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || ''}">${p.albumCount > 1 ? `<span class="media-label">Альбом · ${p.albumCount}</span>` : ''}</div>`
+        ? `<div class="media media-photo" data-preview="${p.id}" style="height:60px;margin-bottom:6px"><img data-photo="${p.id}" alt="Фото" src="${photoCache[p.id] || BLANK_IMG}">${p.albumCount > 1 ? `<span class="media-label">Альбом · ${p.albumCount}</span>` : ''}</div>`
         : p.hasMediaThumb
-          ? `<div class="media media-photo" data-preview="${p.id}" style="height:60px;margin-bottom:6px"><img data-media-thumb="${p.id}" alt="${esc(p.media || 'медиа')}" src="${mediaThumbCache[p.id] || ''}"><span class="media-label">${esc(p.media || 'медиа')}</span></div>`
+          ? `<div class="media media-photo" data-preview="${p.id}" style="height:60px;margin-bottom:6px"><img data-media-thumb="${p.id}" alt="${esc(p.media || 'медиа')}" src="${mediaThumbCache[p.id] || BLANK_IMG}"><span class="media-label">${esc(p.media || 'медиа')}</span></div>`
           : ''}
       <p class="done-text" data-preview="${p.id}">#${p.id} — ${esc(p.preview || p.media || 'без текста')}</p>
     </div>
