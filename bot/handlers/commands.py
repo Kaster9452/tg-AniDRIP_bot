@@ -89,7 +89,11 @@ async def cmd_id(message: Message) -> None:
 
 
 @router.message(Command("queue"))
-async def cmd_queue(message: Message, tz: ZoneInfo) -> None:
+async def cmd_queue(message: Message, bot: Bot, tz: ZoneInfo, admin_group_id: int) -> None:
+    if not await is_group_admin(bot, admin_group_id, message.from_user.id):
+        await message.reply("Эта команда доступна только администраторам группы.")
+        return
+
     posts = await db.get_scheduled_posts()
     if not posts:
         await message.reply("Очередь пуста — отложенных постов нет.")
@@ -105,7 +109,11 @@ async def cmd_queue(message: Message, tz: ZoneInfo) -> None:
 
 
 @router.message(Command("pending"))
-async def cmd_pending(message: Message, tz: ZoneInfo) -> None:
+async def cmd_pending(message: Message, bot: Bot, tz: ZoneInfo, admin_group_id: int) -> None:
+    if not await is_group_admin(bot, admin_group_id, message.from_user.id):
+        await message.reply("Эта команда доступна только администраторам группы.")
+        return
+
     posts = await db.get_pending_posts()
     if not posts:
         await message.reply("Нет предложек, ждущих решения.")
@@ -118,7 +126,11 @@ async def cmd_pending(message: Message, tz: ZoneInfo) -> None:
 
 
 @router.message(Command("published"))
-async def cmd_published(message: Message, tz: ZoneInfo) -> None:
+async def cmd_published(message: Message, bot: Bot, tz: ZoneInfo, admin_group_id: int) -> None:
+    if not await is_group_admin(bot, admin_group_id, message.from_user.id):
+        await message.reply("Эта команда доступна только администраторам группы.")
+        return
+
     posts = await db.get_published_posts()
     if not posts:
         await message.reply("Пока ничего не опубликовано.")
@@ -142,8 +154,10 @@ def parse_post_id(command: CommandObject) -> int | None:
 
 
 @router.message(Command("cancel"))
-async def cmd_cancel(message: Message, command: CommandObject, bot: Bot) -> None:
-    if not await is_group_admin(bot, message.chat.id, message.from_user.id):
+async def cmd_cancel(
+    message: Message, command: CommandObject, bot: Bot, admin_group_id: int
+) -> None:
+    if not await is_group_admin(bot, admin_group_id, message.from_user.id):
         await message.reply("Эта команда доступна только администраторам группы.")
         return
 
@@ -176,9 +190,9 @@ async def cmd_cancel(message: Message, command: CommandObject, bot: Bot) -> None
 
 @router.message(Command("time"))
 async def cmd_reschedule(
-    message: Message, command: CommandObject, bot: Bot, tz: ZoneInfo
+    message: Message, command: CommandObject, bot: Bot, tz: ZoneInfo, admin_group_id: int
 ) -> None:
-    if not await is_group_admin(bot, message.chat.id, message.from_user.id):
+    if not await is_group_admin(bot, admin_group_id, message.from_user.id):
         await message.reply("Эта команда доступна только администраторам группы.")
         return
 
@@ -233,9 +247,14 @@ async def cmd_reschedule(
 
 
 async def _publish_now(
-    message: Message, command: CommandObject, bot: Bot, channel_id: int, signed: bool
+    message: Message,
+    command: CommandObject,
+    bot: Bot,
+    channel_id: int,
+    signed: bool,
+    admin_group_id: int,
 ) -> None:
-    if not await is_group_admin(bot, message.chat.id, message.from_user.id):
+    if not await is_group_admin(bot, admin_group_id, message.from_user.id):
         await message.reply("Эта команда доступна только администраторам группы.")
         return
 
@@ -274,16 +293,16 @@ async def _publish_now(
 
 @router.message(Command("post"))
 async def cmd_post_anon(
-    message: Message, command: CommandObject, bot: Bot, channel_id: int
+    message: Message, command: CommandObject, bot: Bot, channel_id: int, admin_group_id: int
 ) -> None:
-    await _publish_now(message, command, bot, channel_id, signed=False)
+    await _publish_now(message, command, bot, channel_id, signed=False, admin_group_id=admin_group_id)
 
 
 @router.message(Command("posts"))
 async def cmd_post_signed(
-    message: Message, command: CommandObject, bot: Bot, channel_id: int
+    message: Message, command: CommandObject, bot: Bot, channel_id: int, admin_group_id: int
 ) -> None:
-    await _publish_now(message, command, bot, channel_id, signed=True)
+    await _publish_now(message, command, bot, channel_id, signed=True, admin_group_id=admin_group_id)
 
 @router.message(Command("panel"))
 async def cmd_panel(
@@ -352,7 +371,11 @@ async def cmd_panel(
 
 
 @router.message(Command("bans"))
-async def cmd_bans(message: Message, bot: Bot) -> None:
+async def cmd_bans(message: Message, bot: Bot, admin_group_id: int) -> None:
+    if not await is_group_admin(bot, admin_group_id, message.from_user.id):
+        await message.reply("Эта команда доступна только администраторам группы.")
+        return
+
     rows = await db.get_banned_users()
     if not rows:
         await message.reply("Заблокированных нет.")
