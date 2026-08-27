@@ -567,6 +567,16 @@ function haptic(type) {
   try { tg?.HapticFeedback?.notificationOccurred(type); } catch (_) {}
 }
 
+function confirmAction(message) {
+  return new Promise((resolve) => {
+    if (tg?.showConfirm) {
+      tg.showConfirm(message, (ok) => resolve(!!ok));
+    } else {
+      resolve(window.confirm(message));
+    }
+  });
+}
+
 async function api(path, body = {}) {
   const res = await fetch('/api/' + path, {
     method: 'POST',
@@ -867,6 +877,9 @@ function renderLog() {
           ? `<div class="media media-photo" data-preview="${p.id}" style="height:60px;margin-bottom:6px"><img data-media-thumb="${p.id}" alt="${esc(p.media || 'медиа')}" src="${mediaThumbCache[p.id] || ''}"><span class="media-label">${esc(p.media || 'медиа')}</span></div>`
           : ''}
       <p class="done-text" data-preview="${p.id}">#${p.id} — ${esc(p.preview || p.media || 'без текста')}</p>
+      <div class="mini-acts" style="margin-top:8px">
+        <button class="link" data-delete-published="${p.id}">🗑 Удалить из канала</button>
+      </div>
     </div>
   `}).join('');
 }
@@ -1174,6 +1187,14 @@ document.addEventListener('click', (e) => {
 
   if (t.dataset.cancel) {
     act('cancel', { postId: +t.dataset.cancel }, 'Снято');
+    return;
+  }
+
+  if (t.dataset.deletePublished) {
+    const id = +t.dataset.deletePublished;
+    confirmAction('Удалить этот пост из канала? Отменить нельзя.').then((ok) => {
+      if (ok) act('delete-published', { postId: id }, 'Удалено из канала');
+    });
     return;
   }
 

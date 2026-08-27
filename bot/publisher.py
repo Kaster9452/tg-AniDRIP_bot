@@ -101,6 +101,7 @@ async def publish_post(
     content_type = post["content_type"]
     body = post["content_html"] or ""
     suffix = f"\n\n{attribution_line(post)}" if with_attribution else ""
+    album_message_ids: list[int] | None = None
 
     try:
         if post["media_group"]:
@@ -110,6 +111,7 @@ async def publish_post(
                 channel_id, media=build_input_media(items, caption)
             )
             sent = sent_list[0]
+            album_message_ids = [m.message_id for m in sent_list]
 
         elif content_type == "text":
             sent = await bot.send_message(channel_id, f"{body}{suffix}")
@@ -146,7 +148,7 @@ async def publish_post(
         raise PublishError(str(exc)) from exc
 
     message_id = sent.message_id
-    await db.mark_published(post["id"], message_id, with_attribution)
+    await db.mark_published(post["id"], message_id, with_attribution, album_message_ids)
 
     # Свои посты админ уже видит в канале — уведомлять только внешних авторов.
     if not post["is_own"]:

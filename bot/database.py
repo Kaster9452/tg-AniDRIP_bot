@@ -72,6 +72,10 @@ ALTER TABLE posts ADD COLUMN IF NOT EXISTS scheduled_by TEXT;
 -- (без него база бы бесконечно росла записью на каждое пересланное сообщение).
 ALTER TABLE message_map ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
+-- Для альбомов send_media_group возвращает несколько ID сообщений в канале —
+-- без списка всех ID «Удалить из канала» стёрло бы только первое фото альбома.
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS channel_message_ids TEXT;
+
 CREATE TABLE IF NOT EXISTS banned_users (
     user_id   BIGINT PRIMARY KEY,
     username  TEXT,
@@ -260,7 +264,10 @@ async def get_post(post_id: int) -> asyncpg.Record | None:
 
 
 async def mark_published(
-    post_id: int, channel_message_id: int, with_attribution: bool
+    post_id: int,
+    channel_message_id: int,
+    with_attribution: bool,
+    channel_message_ids: list[int] | None = None,
 ) -> None:
     pool = _require_pool()
     async with pool.acquire() as conn:
@@ -270,6 +277,7 @@ async def mark_published(
                SET status = 'published',
                    published_at = NOW(),
                    channel_message_id = $2,
+                   channel_message_ids = $4,
                    with_attribution = $3,
                    scheduled_at = NULL
              WHERE id = $1
@@ -277,6 +285,17 @@ async def mark_published(
             post_id,
             channel_message_id,
             with_attribution,
+            json.dumps(channel_message_ids) if channel_message_ids else None,
+        )
+
+
+async def mark_deleted(post_id: int) -> None:
+    """Пост убрали из канала уже после публикации — повторно его не публикуем."""
+    pool = _require_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE posts SET status = 'deleted' WHERE id = $1",
+            post_id,
         )
 
 

@@ -581,6 +581,37 @@ async def handle_reject(request: web.Request) -> web.Response:
     return web.json_response({"ok": True, "message": "Отклонено"})
 
 
+async def handle_delete_published(request: web.Request) -> web.Response:
+    """Убирает уже опубликованный пост из канала (на случай ошибки публикации)."""
+    payload = await read_payload(request)
+    await authorize(request, payload)
+
+    bot: Bot = request.app["bot"]
+    config: Config = request.app["config"]
+
+    post = await load_post(post_id_from(payload))
+    if post["status"] != "published":
+        raise ApiError("Этот пост не опубликован")
+    if not post["channel_message_id"]:
+        raise ApiError("Не найдено сообщение в канале")
+
+    message_ids = [post["channel_message_id"]]
+    if post["channel_message_ids"]:
+        message_ids = json.loads(post["channel_message_ids"])
+
+    try:
+        if len(message_ids) > 1:
+            await bot.delete_messages(config.channel_id, message_ids)
+        else:
+            await bot.delete_message(config.channel_id, message_ids[0])
+    except Exception as exc:
+        logger.exception("Не удалось удалить пост #%s из канала", post["id"])
+        raise ApiError(f"Не удалось удалить из канала: {exc}", status=502) from exc
+
+    await db.mark_deleted(post["id"])
+    return web.json_response({"ok": True, "message": "Удалено из канала"})
+
+
 async def handle_photo(request: web.Request) -> web.Response:
     """Отдаёт фото поста как data-URL, чтобы панель могла показать превью.
 
@@ -1007,6 +1038,7 @@ def build_app(bot: Bot, config: Config) -> web.Application:
     app.router.add_post("/api/cancel", handle_cancel)
     app.router.add_post("/api/edit-post", handle_edit_post)
     app.router.add_post("/api/reject", handle_reject)
+    app.router.add_post("/api/delete-published", handle_delete_published)
     app.router.add_post("/api/people", handle_people)
     app.router.add_post("/api/ban", handle_ban)
     app.router.add_post("/api/unban", handle_unban)
