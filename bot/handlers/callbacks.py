@@ -51,10 +51,10 @@ def admin_label(user) -> str:
     """Имя админа для отображения в очереди — кто отложил пост."""
     return f"@{user.username}" if user.username else user.full_name
 
-async def _guard(query: CallbackQuery, bot: Bot, post_id: int):
+async def _guard(query: CallbackQuery, bot: Bot, post_id: int, admin_group_id: int):
     """Общая проверка: права админа и состояние поста.
     Возвращает запись поста или None, если действие запрещено."""
-    if not await is_group_admin(bot, query.message.chat.id, query.from_user.id):
+    if not await is_group_admin(bot, admin_group_id, query.from_user.id):
         await query.answer(NOT_ADMIN, show_alert=True)
         return None
 
@@ -69,8 +69,8 @@ async def _guard(query: CallbackQuery, bot: Bot, post_id: int):
 
 
 @router.callback_query(PostCB.filter(F.action.in_({ACT_PUBLISH, ACT_LATER})))
-async def on_first_step(query: CallbackQuery, callback_data: PostCB, bot: Bot) -> None:
-    post = await _guard(query, bot, callback_data.post_id)
+async def on_first_step(query: CallbackQuery, callback_data: PostCB, bot: Bot, admin_group_id: int) -> None:
+    post = await _guard(query, bot, callback_data.post_id, admin_group_id)
     if post is None:
         return
 
@@ -91,9 +91,9 @@ async def on_back(query: CallbackQuery, callback_data: PostCB) -> None:
 
 @router.callback_query(PostCB.filter(F.action.in_(IMMEDIATE_ACTIONS)))
 async def on_publish_now(
-    query: CallbackQuery, callback_data: PostCB, bot: Bot, channel_id: int
+    query: CallbackQuery, callback_data: PostCB, bot: Bot, channel_id: int, admin_group_id: int
 ) -> None:
-    post = await _guard(query, bot, callback_data.post_id)
+    post = await _guard(query, bot, callback_data.post_id, admin_group_id)
     if post is None:
         return
 
@@ -120,8 +120,9 @@ async def on_schedule_requested(
     bot: Bot,
     state: FSMContext,
     tz: ZoneInfo,
+    admin_group_id: int,
 ) -> None:
-    post = await _guard(query, bot, callback_data.post_id)
+    post = await _guard(query, bot, callback_data.post_id, admin_group_id)
     if post is None:
         return
 
@@ -143,8 +144,9 @@ async def on_schedule_day(
     bot: Bot,
     state: FSMContext,
     tz: ZoneInfo,
+    admin_group_id: int,
 ) -> None:
-    if not await is_group_admin(bot, query.message.chat.id, query.from_user.id):
+    if not await is_group_admin(bot, admin_group_id, query.from_user.id):
         await query.answer(NOT_ADMIN, show_alert=True)
         return
 
@@ -174,8 +176,9 @@ async def on_schedule_slot(
     bot: Bot,
     state: FSMContext,
     tz: ZoneInfo,
+    admin_group_id: int,
 ) -> None:
-    if not await is_group_admin(bot, query.message.chat.id, query.from_user.id):
+    if not await is_group_admin(bot, admin_group_id, query.from_user.id):
         await query.answer(NOT_ADMIN, show_alert=True)
         return
 
@@ -292,9 +295,9 @@ async def on_time_entered(
 
 @router.callback_query(PostCB.filter(F.action == ACT_CANCEL))
 async def on_cancel_scheduled(
-    query: CallbackQuery, callback_data: PostCB, bot: Bot
+    query: CallbackQuery, callback_data: PostCB, bot: Bot, admin_group_id: int
 ) -> None:
-    if not await is_group_admin(bot, query.message.chat.id, query.from_user.id):
+    if not await is_group_admin(bot, admin_group_id, query.from_user.id):
         await query.answer(NOT_ADMIN, show_alert=True)
         return
 
