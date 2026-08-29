@@ -198,6 +198,41 @@ async def purge_old_message_map(cutoff: datetime) -> int:
         return 0
 
 
+async def get_weekly_stats(since: datetime) -> asyncpg.Record | None:
+    """Итоги недели: сколько предложок пришло, сколько опубликовано, топ-автор.
+
+    Считается по постам за последние 7 дней — чистка 30-дневного мусора
+    этим данным не мешает."""
+    pool = _require_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetchrow(
+            """
+            WITH top AS (
+                SELECT author_name, author_username, COUNT(*) AS cnt
+                FROM posts
+                WHERE NOT is_own
+                  AND status = 'published'
+                  AND published_at >= $1
+                GROUP BY user_id, author_name, author_username
+                ORDER BY cnt DESC
+                LIMIT 1
+            )
+            SELECT
+                (SELECT COUNT(*) FROM posts
+                  WHERE NOT is_own AND created_at >= $1)                    AS received,
+                (SELECT COUNT(*) FROM posts
+                  WHERE NOT is_own AND status = 'published'
+                    AND published_at >= $1)                                 AS published,
+                t.author_name                                               AS top_name,
+                t.author_username                                           AS top_username,
+                t.cnt                                                       AS top_count
+            FROM (SELECT 1) AS one
+            LEFT JOIN top t ON TRUE
+            """,
+            since,
+        )
+
+
 async def purge_old_posts(cutoff: datetime) -> int:
     """Удаляет отработанные посты старше cutoff: опубликованные, отклонённые,
     снятые и упавшие. Живые (pending/scheduled) не трогает никогда.

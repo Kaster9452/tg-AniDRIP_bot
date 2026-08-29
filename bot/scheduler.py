@@ -21,6 +21,7 @@ MESSAGE_MAP_RETENTION = timedelta(days=3)
 # Отработанные посты (published/rejected/cancelled/failed) живут в базе месяц:
 # панель показывает только 15 последних, сводке хватает недели, а база не растёт.
 POSTS_RETENTION = timedelta(days=30)
+WEEKLY_SUMMARY_INTERVAL = timedelta(days=7)
 
 
 async def run_scheduler(
@@ -29,6 +30,8 @@ async def run_scheduler(
     logger.info("Планировщик отложенных постов запущен")
     last_subscriber_sample = datetime.min.replace(tzinfo=timezone.utc)
     last_cleanup = datetime.min.replace(tzinfo=timezone.utc)
+    # первая сводка — через неделю после старта, чтобы не спамить при деплое
+    last_weekly_summary = datetime.now(timezone.utc)
 
     while True:
         try:
@@ -59,6 +62,35 @@ async def run_scheduler(
                     logger.exception("Не удалось очистить старые посты")
                 finally:
                     last_cleanup = now
+
+            if (now - last_weekly_summary).total_seconds() >= WEEKLY_SUMMARY_INTERVAL.total_seconds():
+                try:
+                    since = now - WEEKLY_SUMMARY_INTERVAL
+                    stats = await db.get_weekly_stats(since)
+                    if stats:
+                        top = ""
+                        if stats["top_count"]:
+                            who = (
+                                f"@{stats['top_username']}"
+                                if stats["top_username"]
+                                else (stats["top_name"] or "без имени")
+                            )
+                            top = f"\n🏆 Топ-автор: {who} — {stats['top_count']} публ."
+                        period = (
+                            f"{since.astimezone(tz).strftime('%d.%m')}"
+                            f"—{now.astimezone(tz).strftime('%d.%m')}"
+                        )
+                        await bot.send_message(
+                            admin_group_id,
+                            f"📊 Сводка за неделю ({period})\n"
+                            f"Прислано: {stats['received']} · "
+                            f"Опубликовано: {stats['published']}"
+                            f"{top}",
+                        )
+                except Exception:
+                    logger.exception("Не удалось отправить недельную сводку")
+                finally:
+                    last_weekly_summary = now
 
             due = await db.get_due_posts(datetime.now(timezone.utc))
             for post in due:
