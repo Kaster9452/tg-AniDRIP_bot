@@ -1618,29 +1618,78 @@ function latGridHtml(id) {
   }).join('');
 }
 
-/* При выборе слота не перерисовываем всю сетку (иначе у всех индикаторов-
-   светофоров заново стартует анимация pulse-beacon), а только переключаем
-   класс selected у существующих элементов. */
-function applyLatSlotPick(id) {
+/* Патчит кнопки дней без пересоздания DOM — анимация не сбрасывается */
+function patchLatDays(id) {
+  const wrap = document.querySelector(`[data-latdays="${id}"]`);
+  if (!wrap) return;
+  const activeDay = latSel[id]?.day ?? 0;
+  wrap.querySelectorAll('.day-btn[data-latday]').forEach(btn => {
+    const btnDay = +btn.dataset.latday.split(':')[1];
+    btn.classList.toggle('active', btnDay === activeDay);
+  });
+}
+
+/* Патчит сетку слотов без пересоздания DOM (смена дня).
+   Если количество слотов изменилось — перестраивает с нуля (неизбежно). */
+function patchLatGrid(id) {
   const grid = document.querySelector(`[data-latgrid="${id}"]`);
   if (!grid) return;
+  const day = (state.days || [])[latSel[id]?.day ?? 0];
+  if (!day) { grid.innerHTML = ''; return; }
+  const cells = grid.querySelectorAll('.slot-cell');
+  if (cells.length !== day.slots.length) {
+    // Число слотов изменилось — полная перестройка неизбежна
+    grid.innerHTML = latGridHtml(id);
+    return;
+  }
+  // Число слотов совпадает — патчим каждую ячейку без пересоздания
   const selTime = latSel[id]?.time;
-  grid.querySelectorAll('.slot-cell[data-latslot]').forEach(el => {
-    if (el.classList.contains('taken') || el.classList.contains('past')) return;
-    const i = el.dataset.latslot.indexOf(':');
-    const time = el.dataset.latslot.slice(i + 1);
-    const chosen = selTime === time;
-    el.classList.toggle('selected', chosen);
-    const st = el.querySelector('.slot-status');
-    if (st) st.textContent = chosen ? 'Выбран' : (el.dataset.base || 'Свободно');
+  day.slots.forEach((slot, i) => {
+    const el = cells[i];
+    const past = slot.state === 'past';
+    const taken = slot.state === 'taken';
+    const chosen = selTime === slot.time;
+    const baseStatus = past ? 'Прошёл' : taken ? `Занят #${slot.postId}` : 'Свободно';
+    const cls = taken ? 'taken' : chosen ? 'selected' : past ? 'past' : 'free';
+    // Обновляем data-атрибуты и классы без замены элемента
+    el.dataset.latslot = `${id}:${slot.time}`;
+    el.dataset.base = baseStatus;
+    el.className = `slot-cell ${cls}`;
+    const timeEl = el.querySelector('.slot-time');
+    if (timeEl) timeEl.textContent = slot.time;
+    const statusEl = el.querySelector('.slot-status');
+    if (statusEl) statusEl.textContent = chosen ? 'Выбран' : baseStatus;
+    // Тег предложка/свой пост
+    let tagEl = el.querySelector('.slot-tag');
+    if (taken) {
+      const tagHtml = slot.postOwn === false
+        ? '<span class="slot-tag tag-predlozhka">предложка</span>'
+        : '<span class="slot-tag tag-own">свой пост</span>';
+      if (!tagEl) el.insertAdjacentHTML('beforeend', tagHtml);
+      else tagEl.outerHTML = tagHtml;
+    } else if (tagEl) {
+      tagEl.remove();
+    }
   });
 }
 
 function renderLat(id) {
-  const days = document.querySelector(`[data-latdays="${id}"]`);
-  const grid = document.querySelector(`[data-latgrid="${id}"]`);
-  if (days) days.innerHTML = latDaysHtml(id);
-  if (grid) grid.innerHTML = latGridHtml(id);
+  const daysEl = document.querySelector(`[data-latdays="${id}"]`);
+  const gridEl = document.querySelector(`[data-latgrid="${id}"]`);
+  if (daysEl) {
+    if (daysEl.children.length === 0) {
+      daysEl.innerHTML = latDaysHtml(id);
+    } else {
+      patchLatDays(id);
+    }
+  }
+  if (gridEl) {
+    if (gridEl.children.length === 0) {
+      gridEl.innerHTML = latGridHtml(id);
+    } else {
+      patchLatGrid(id);
+    }
+  }
 }
 
 function renderAllLatGrids() {
@@ -2085,16 +2134,27 @@ function closeCreateModal() {
 }
 
 function renderOwnDays() {
-  $('own-day-selector').innerHTML = ownDays.map(d => `
-    <button class="day-btn ${d.index === ownDay ? 'active' : ''}" data-ownday="${d.index}">
-      ${esc(d.name)}<small>${esc(d.date)}</small>
-    </button>`).join('');
+  const wrap = $('own-day-selector');
+  if (!wrap) return;
+  if (wrap.children.length === 0) {
+    wrap.innerHTML = ownDays.map(d => `
+      <button class="day-btn ${d.index === ownDay ? 'active' : ''}" data-ownday="${d.index}">
+        ${esc(d.name)}<small>${esc(d.date)}</small>
+      </button>`).join('');
+  } else {
+    wrap.querySelectorAll('.day-btn[data-ownday]').forEach(btn => {
+      btn.classList.toggle('active', +btn.dataset.ownday === ownDay);
+    });
+  }
 }
 
 function renderOwnGrid() {
+  const grid = $('own-slots-grid');
+  if (!grid) return;
   const day = ownDays[ownDay];
-  if (!day) { $('own-slots-grid').innerHTML = ''; return; }
-  $('own-slots-grid').innerHTML = day.slots.map(slot => {
+  if (!day) { grid.innerHTML = ''; return; }
+
+  const buildCell = (slot) => {
     const past = slot.state === 'past';
     const taken = slot.state === 'taken';
     const chosen = ownSlot === slot.time;
@@ -2110,7 +2170,39 @@ function renderOwnGrid() {
         <span class="slot-status">${status}</span>
         ${tag}
       </div>`;
-  }).join('');
+  };
+
+  const cells = grid.querySelectorAll('.slot-cell');
+  if (cells.length !== day.slots.length) {
+    grid.innerHTML = day.slots.map(buildCell).join('');
+    return;
+  }
+  // Патчим без пересоздания — анимация светофоров не сбрасывается
+  day.slots.forEach((slot, i) => {
+    const el = cells[i];
+    const past = slot.state === 'past';
+    const taken = slot.state === 'taken';
+    const chosen = ownSlot === slot.time;
+    const baseStatus = past ? 'Уже прошло' : taken ? `Занят #${slot.postId}` : 'Свободно';
+    const cls = taken ? 'taken' : chosen ? 'selected' : past ? 'past' : 'free';
+    el.dataset.ownslot = slot.time;
+    el.dataset.base = baseStatus;
+    el.className = `slot-cell ${cls}`;
+    const timeEl = el.querySelector('.slot-time');
+    if (timeEl) timeEl.textContent = slot.time;
+    const statusEl = el.querySelector('.slot-status');
+    if (statusEl) statusEl.textContent = chosen ? 'Выбрано' : baseStatus;
+    let tagEl = el.querySelector('.slot-tag');
+    if (taken) {
+      const tagHtml = slot.postOwn === false
+        ? '<span class="slot-tag tag-predlozhka">предложка</span>'
+        : '<span class="slot-tag tag-own">свой пост</span>';
+      if (!tagEl) el.insertAdjacentHTML('beforeend', tagHtml);
+      else tagEl.outerHTML = tagHtml;
+    } else if (tagEl) {
+      tagEl.remove();
+    }
+  });
 }
 
 /* Плавный выбор слота в «Своём посте»: только класс, без перерисовки сетки. */
@@ -2248,16 +2340,27 @@ function closeEditModal() {
 }
 
 function renderEditDays() {
-  $('edit-day-selector').innerHTML = (state.days || []).map(d => `
-    <button class="day-btn ${d.index === editDay ? 'active' : ''}" data-editday="${d.index}">
-      ${esc(d.name)}<small>${esc(d.date)}</small>
-    </button>`).join('');
+  const wrap = $('edit-day-selector');
+  if (!wrap) return;
+  if (wrap.children.length === 0) {
+    wrap.innerHTML = (state.days || []).map(d => `
+      <button class="day-btn ${d.index === editDay ? 'active' : ''}" data-editday="${d.index}">
+        ${esc(d.name)}<small>${esc(d.date)}</small>
+      </button>`).join('');
+  } else {
+    wrap.querySelectorAll('.day-btn[data-editday]').forEach(btn => {
+      btn.classList.toggle('active', +btn.dataset.editday === editDay);
+    });
+  }
 }
 
 function renderEditGrid() {
+  const grid = $('edit-slots-grid');
+  if (!grid) return;
   const day = (state.days || [])[editDay];
-  if (!day) { $('edit-slots-grid').innerHTML = ''; return; }
-  $('edit-slots-grid').innerHTML = day.slots.map(slot => {
+  if (!day) { grid.innerHTML = ''; return; }
+
+  const buildCell = (slot) => {
     const isThisPost = slot.postId === editingPostId;
     const past = slot.state === 'past' && !isThisPost;
     const taken = slot.state === 'taken' && !isThisPost;
@@ -2270,7 +2373,30 @@ function renderEditGrid() {
         <span class="slot-time">${slot.time}</span>
         <span class="slot-status">${status}</span>
       </div>`;
-  }).join('');
+  };
+
+  const cells = grid.querySelectorAll('.slot-cell');
+  if (cells.length !== day.slots.length) {
+    grid.innerHTML = day.slots.map(buildCell).join('');
+    return;
+  }
+  // Патчим без пересоздания — анимация светофоров не сбрасывается
+  day.slots.forEach((slot, i) => {
+    const el = cells[i];
+    const isThisPost = slot.postId === editingPostId;
+    const past = slot.state === 'past' && !isThisPost;
+    const taken = slot.state === 'taken' && !isThisPost;
+    const chosen = editSlot === slot.time;
+    const baseStatus = taken ? `Занят #${slot.postId}` : isThisPost ? 'Сейчас' : past ? 'Прошёл' : 'Свободен';
+    const cls = taken ? 'taken' : chosen ? 'selected' : past ? 'past' : 'free';
+    el.dataset.editslot = slot.time;
+    el.dataset.base = baseStatus;
+    el.className = `slot-cell ${cls}`;
+    const timeEl = el.querySelector('.slot-time');
+    if (timeEl) timeEl.textContent = slot.time;
+    const statusEl = el.querySelector('.slot-status');
+    if (statusEl) statusEl.textContent = chosen ? 'Выбрано' : baseStatus;
+  });
 }
 
 /* Плавный выбор слота при редактировании: только класс, без перерисовки. */
