@@ -1948,7 +1948,44 @@ async function refresh() {
 }
 
 function refreshState() {
-  haptic('light');
+  haptic('medium');
+
+  // — закрываем все открытые модалки и аккордеоны —
+  closeCreateModal();
+  closeEditModal();
+  closeRejectModal();
+  closeMediaViewer();
+  document.querySelectorAll('.accordion-step.open').forEach(el => el.classList.remove('open'));
+
+  // — сбрасываем все кэши медиа —
+  Object.keys(photoCache).forEach(k => delete photoCache[k]);
+  Object.keys(mediaThumbCache).forEach(k => delete mediaThumbCache[k]);
+  Object.keys(albumCache).forEach(k => delete albumCache[k]);
+
+  // — сбрасываем выбор слотов и фильтры —
+  Object.keys(latSel).forEach(k => delete latSel[k]);
+  searchQuery = '';
+  filterOnlyAlbums = false;
+  peopleOnlyBanned = false;
+  $('search-input') && ($('search-input').value = '');
+  $('filter-albums-btn') && $('filter-albums-btn').classList.remove('active');
+  $('filter-banned-btn') && $('filter-banned-btn').classList.remove('active');
+
+  // — возвращаемся на вкладку «Предложка» —
+  switchTab('pending');
+
+  // — анимация иконки на время загрузки —
+  const btn = document.querySelector('[onclick="refreshState()"]');
+  const icon = btn && btn.querySelector('i');
+  if (icon) {
+    icon.style.transition = 'transform 0.6s ease';
+    icon.style.transform = 'rotate(360deg)';
+    setTimeout(() => {
+      icon.style.transition = '';
+      icon.style.transform = '';
+    }, 650);
+  }
+
   refresh();
 }
 
