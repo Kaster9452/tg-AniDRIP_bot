@@ -363,7 +363,7 @@ async def handle_ping(request: web.Request) -> web.Response:
 
 
 async def handle_app(request: web.Request) -> web.Response:
-    index = STATIC_DIR / "index.html"
+    index = STATIC_DIR / "test_dashboard(6).html"
     if not index.exists():
         return web.Response(status=404, text="Панель не найдена")
     return web.FileResponse(index)
