@@ -366,7 +366,14 @@ async def handle_app(request: web.Request) -> web.Response:
     index = STATIC_DIR / "index_v2.html"
     if not index.exists():
         return web.Response(status=404, text="Панель не найдена")
-    return web.FileResponse(index)
+    config: Config = request.app["config"]
+    html_text = index.read_text(encoding="utf-8")
+    # Подставляем название бота (переменная BOT_NAME), безопасно экранируя,
+    # чтобы имя владельца не сломало разметку панели.
+    html_text = html_text.replace(
+        "__BOT_NAME__", html.escape(config.bot_name)
+    )
+    return web.Response(text=html_text, content_type="text/html; charset=utf-8")
 
 
 async def handle_state(request: web.Request) -> web.Response:

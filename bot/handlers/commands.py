@@ -21,7 +21,9 @@ logger = logging.getLogger(__name__)
 
 router = Router(name="commands")
 
-ADMIN_HELP = """🎛 <b>AniDRIP</b> · <i>панель управления</i>
+
+def build_admin_help(bot_name: str) -> str:
+    return f"""🎛 <b>{bot_name}</b> · <i>панель управления</i>
 
 <b>━━━━━ ПРЕДЛОЖКИ ━━━━━</b>
 📥 /pending · ждут решения
@@ -75,10 +77,12 @@ def describe(post, tz: ZoneInfo) -> str:
 
 
 @router.message(Command("help"))
-async def cmd_help(message: Message, bot: Bot, admin_group_id: int) -> None:
+async def cmd_help(
+    message: Message, bot: Bot, admin_group_id: int, bot_name: str = ""
+) -> None:
     """Админам — полный список команд, остальным — короткая памятка."""
     if await is_group_admin(bot, admin_group_id, message.from_user.id):
-        await message.reply(ADMIN_HELP)
+        await message.reply(build_admin_help(bot_name or "Предложка"))
     else:
         await message.reply(USER_HELP)
 

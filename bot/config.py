@@ -17,6 +17,7 @@ class Config:
     timezone_name: str
     webapp_url: str
     webapp_short_name: str
+    bot_name: str
     port: int
 
 
@@ -63,6 +64,10 @@ def load_config() -> Config:
     # разрешает, а прямая ссылка t.me/бот/имя работает везде.
     webapp_short_name = os.getenv("WEBAPP_SHORT_NAME", "").strip()
 
+    # Название бота, как его видит владелец: подставляется в панель и в
+    # справку админа. Для удобства переиспользования это отдельная переменная.
+    bot_name = os.getenv("BOT_NAME", "AniDRIP").strip() or "AniDRIP"
+
     # Render сам подставляет PORT для Web Service; для локального запуска
     # берём значение по умолчанию.
     port = int(os.getenv("PORT", "10000"))
@@ -76,5 +81,6 @@ def load_config() -> Config:
         timezone_name=tz_name,
         webapp_url=webapp_url,
         webapp_short_name=webapp_short_name,
+        bot_name=bot_name,
         port=port,
     )

@@ -58,6 +58,7 @@ async def main() -> None:
         "webapp_url": config.webapp_url,
         "webapp_short_name": config.webapp_short_name,
         "bot_username": me.username or "",
+        "bot_name": config.bot_name,
     }
 
     await bot.delete_webhook(drop_pending_updates=True)
