@@ -43,7 +43,7 @@ def build_admin_help(bot_name: str) -> str:
 
 <b>━━━━━ ЛЮДИ ━━━━━</b>
 🚫 /bans · кто заблокирован
-🔓 <code>/unban 943554719</code> · снять блокировку
+🔓 <code>/unban 123456789</code> · снять блокировку
 
 <b>━━━━━ ПРОЧЕЕ ━━━━━</b>
 🗂 /panel · панель модерации целиком
@@ -399,7 +399,7 @@ async def cmd_unban(
         return
 
     if not command.args:
-        await message.reply("Укажите ID, например: <code>/unban 943554719</code>")
+        await message.reply("Укажите ID, например: <code>/unban 123456789</code>")
         return
 
     try:
