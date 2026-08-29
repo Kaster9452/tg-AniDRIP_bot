@@ -1141,6 +1141,25 @@ body {
 .done-mode{font-size:10px;color:var(--mist);margin-top:4px}
 .ava-img{width:30px;height:30px;border-radius:9px;flex:none;display:grid;place-items:center;font-family:'Unbounded',sans-serif;font-weight:600;font-size:12px;background:#2A2838;color:var(--bone);background-size:cover;background-position:center;overflow:hidden}
 .ava-img.has-photo{color:transparent}
+
+/* ── вкладка «Люди» ── */
+.person-card{position:relative;overflow:hidden;background:var(--card);border:1px solid var(--haze);border-radius:18px;padding:16px 14px 14px;margin-bottom:14px;box-shadow:0 4px 20px rgba(0,0,0,0.2);transition:border-color .2s,transform .15s}
+.person-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--rose),var(--purple) 60%,var(--neon-blue));opacity:.85}
+.person-card.person-banned{opacity:.82}
+.person-card.person-banned::before{background:linear-gradient(90deg,var(--rose),#7A2038)}
+.person-card:hover{border-color:rgba(255,255,255,0.16)}
+.person-banned-ava{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-family:'Unbounded',sans-serif;font-weight:700;font-size:15px;color:var(--bone);background-size:cover;background-position:center;flex-shrink:0;box-shadow:0 0 0 2px var(--card),0 0 0 3.5px var(--haze)}
+.person-card.person-banned .person-banned-ava{box-shadow:0 0 0 2px var(--card),0 0 0 3.5px rgba(255,92,158,.45);color:var(--rose)}
+.person-ban-badge{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--rose);background:rgba(255,92,158,.14);border:1px solid rgba(255,92,158,.3);border-radius:20px;padding:3px 9px}
+.person-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:14px 0}
+.person-stat{background:var(--slate);border:1px solid var(--haze);border-radius:12px;padding:10px 6px;text-align:center}
+.person-stat b{font-family:'JetBrains Mono',monospace;font-size:16px;display:block;line-height:1.2}
+.person-stat span{font-size:9.5px;color:var(--mist);text-transform:uppercase;letter-spacing:.06em;display:block;margin-top:3px}
+.person-stat-sent b{color:var(--bone)}
+.person-stat-pub b{color:var(--mint)}
+.person-stat-wait b{color:var(--rose)}
+.person-ban-reason{display:flex;gap:8px;align-items:flex-start;background:rgba(255,92,158,.08);border:1px solid rgba(255,92,158,.2);border-radius:12px;padding:10px 12px;margin-bottom:14px;font-size:12px;line-height:1.45;color:#FFC0D8}
+.person-ban-reason i{margin-top:1px;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -1804,32 +1823,21 @@ function publishedCard(p) {
 function personCard(p) {
   const initials = (p.initials || '??').toUpperCase();
   return `
-    <div class="post-card" style="${p.banned ? 'border-color:rgba(255,92,158,0.3);' : ''}">
+    <div class="person-card ${p.banned ? 'person-banned' : ''}">
       <div class="card-header">
-        <div class="author-avatar" data-avatar="${p.userId}" style="background-color:${p.avatarColor || '#2A2838'}; ${p.banned ? 'background:#361420; color:var(--rose);' : ''}">${esc(initials)}</div>
+        <div class="person-banned-ava" data-avatar="${p.userId}" style="background-color:${p.avatarColor || '#2A2838'}">${esc(initials)}</div>
         <div class="author-info">
-          <div class="author-name">${esc(p.handle)} ${p.banned ? '<span class="source-tag tag-predlozhka">бан</span>' : ''}</div>
+          <div class="author-name" style="display:flex; align-items:center; gap:8px;">${esc(p.handle)} ${p.banned ? '<span class="person-ban-badge">бан</span>' : ''}</div>
           <div class="author-meta">ID ${p.userId} · писал ${esc(p.lastSeen)}</div>
         </div>
       </div>
-      <div style="display:flex; gap:8px; margin-bottom:12px;">
-        <div style="flex:1; background:var(--slate); border:1px solid var(--haze); border-radius:12px; padding:8px 6px; text-align:center;">
-          <b style="font-family:'JetBrains Mono'; font-size:15px; display:block;">${p.total}</b>
-          <span style="font-size:9.5px; color:var(--mist);">прислал</span>
-        </div>
-        <div style="flex:1; background:var(--slate); border:1px solid var(--haze); border-radius:12px; padding:8px 6px; text-align:center;">
-          <b style="font-family:'JetBrains Mono'; font-size:15px; color:var(--mint); display:block;">${p.published}</b>
-          <span style="font-size:9.5px; color:var(--mist);">в канале</span>
-        </div>
-        <div style="flex:1; background:var(--slate); border:1px solid var(--haze); border-radius:12px; padding:8px 6px; text-align:center;">
-          <b style="font-family:'JetBrains Mono'; font-size:15px; color:var(--rose); display:block;">${p.pending}</b>
-          <span style="font-size:9.5px; color:var(--mist);">ждёт</span>
-        </div>
+      <div class="person-stats">
+        <div class="person-stat person-stat-sent"><b>${p.total}</b><span>прислал</span></div>
+        <div class="person-stat person-stat-pub"><b>${p.published}</b><span>в канале</span></div>
+        <div class="person-stat person-stat-wait"><b>${p.pending}</b><span>ждёт</span></div>
       </div>
       ${p.banned && p.banReason ? `
-      <div style="background:rgba(255,92,158,0.08); border:1px solid rgba(255,92,158,0.2); border-radius:10px; padding:10px 12px; margin-bottom:12px; font-size:12px; color:#FFC0D8;">
-        <b>Причина:</b> ${esc(p.banReason)}
-      </div>` : ''}
+      <div class="person-ban-reason"><i class="ph-bold ph-warning"></i><span><b>Причина:</b> ${esc(p.banReason)}</span></div>` : ''}
       <div class="card-actions">
         ${p.banned
           ? `<button class="btn btn-schedule" style="color:var(--mint);" data-unban="${p.userId}"><i class="ph-bold ph-arrow-counter-clockwise"></i> Разблокировать</button>`
