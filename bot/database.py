@@ -80,6 +80,18 @@ CREATE TABLE IF NOT EXISTS banned_users (
     banned_by TEXT,
     banned_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Вечная личная статистика автора: живёт независимо от строк posts,
+-- которые периодически чистятся (published/rejected/cancelled/failed
+-- старше POSTS_RETENTION удаляются, счётчики людей — никогда).
+CREATE TABLE IF NOT EXISTS user_stats (
+    user_id         BIGINT PRIMARY KEY,
+    author_name     TEXT,
+    author_username TEXT,
+    total           INTEGER NOT NULL DEFAULT 0,
+    published       INTEGER NOT NULL DEFAULT 0,
+    last_seen       TIMESTAMPTZ
+);
 """
 
 
@@ -109,6 +121,25 @@ async def init_db(database_url: str) -> None:
     )
     async with _pool.acquire() as conn:
         await conn.execute(SCHEMA_SQL)
+        # Разовый перенос накопленной статистики в user_stats (ON CONFLICT
+        # DO NOTHING: при следующих стартах уже существующие строки не трогаем,
+        # чтобы бэкфилл не задваивал счётчики поверх живых инкрементов).
+        await conn.execute(
+            """
+            INSERT INTO user_stats (user_id, author_name, author_username,
+                                    total, published, last_seen)
+            SELECT p.user_id,
+                   (array_agg(p.author_name     ORDER BY p.id DESC))[1],
+                   (array_agg(p.author_username ORDER BY p.id DESC))[1],
+                   COUNT(*),
+                   COUNT(*) FILTER (WHERE p.status = 'published'),
+                   MAX(p.created_at)
+            FROM posts p
+            WHERE NOT p.is_own
+            GROUP BY p.user_id
+            ON CONFLICT (user_id) DO NOTHING
+            """
+        )
 
 
 async def close_db() -> None:
@@ -167,6 +198,28 @@ async def purge_old_message_map(cutoff: datetime) -> int:
         return 0
 
 
+async def purge_old_posts(cutoff: datetime) -> int:
+    """Удаляет отработанные посты старше cutoff: опубликованные, отклонённые,
+    снятые и упавшие. Живые (pending/scheduled) не трогает никогда.
+
+    Личная статистика людей живёт в user_stats и от этих строк не зависит,
+    история подписчиков — отдельная таблица, тоже не затрагивается."""
+    pool = _require_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            """
+            DELETE FROM posts
+             WHERE status IN ('published', 'rejected', 'cancelled', 'failed')
+               AND COALESCE(published_at, created_at) < $1
+            """,
+            cutoff,
+        )
+    try:
+        return int(result.split()[-1])
+    except (ValueError, IndexError):
+        return 0
+
+
 # --- предложенные посты -------------------------------------------------------
 
 
@@ -183,7 +236,7 @@ async def create_post(
 ) -> int:
     pool = _require_pool()
     async with pool.acquire() as conn:
-        return await conn.fetchval(
+        post_id = await conn.fetchval(
             """
             INSERT INTO posts (user_id, user_message_id, author_name,
                                author_username, content_type, content_html, file_id,
@@ -201,6 +254,23 @@ async def create_post(
             media_thumb_id,
             json.dumps(media_group) if media_group else None,
         )
+        # Вечная статистика автора: «прислал» растёт при каждом новом посте
+        await conn.execute(
+            """
+            INSERT INTO user_stats (user_id, author_name, author_username,
+                                    total, published, last_seen)
+            VALUES ($1, $2, $3, 1, 0, NOW())
+            ON CONFLICT (user_id) DO UPDATE
+               SET total           = user_stats.total + 1,
+                   author_name     = EXCLUDED.author_name,
+                   author_username = EXCLUDED.author_username,
+                   last_seen       = NOW()
+            """,
+            user_id,
+            author_name,
+            author_username,
+        )
+        return post_id
 
 
 async def create_own_post(
@@ -279,6 +349,16 @@ async def mark_published(
             post_id,
             channel_message_id,
             with_attribution,
+        )
+        # Вечная статистика: «в канале» растёт только у постов от людей
+        # (свои посты админа в статистике «Люди» не участвуют, как и раньше)
+        await conn.execute(
+            """
+            UPDATE user_stats
+               SET published = published + 1
+             WHERE user_id = (SELECT user_id FROM posts WHERE id = $1 AND NOT is_own)
+            """,
+            post_id,
         )
 
 
@@ -560,7 +640,12 @@ async def search_people(
     query: str = "", only_banned: bool = False, limit: int = 60
 ) -> list[asyncpg.Record]:
     """Ищет по username, имени или числовому ID. Пустой запрос — все подряд,
-    начиная с тех, кто писал недавно."""
+    начиная с тех, кто писал недавно.
+
+    Вечные счётчики (total, published) и имя берутся из user_stats — они
+    не зависят от чистки старых постов. «Ждёт» — живой подсчёт по posts,
+    где всегда лежат только актуальные посты.
+    """
     pattern = f"%{query.strip()}%" if query.strip() else None
     numeric = query.strip() if query.strip().isdigit() else None
 
@@ -569,25 +654,25 @@ async def search_people(
         return await conn.fetch(
             """
             SELECT
-                p.user_id,
-                (array_agg(p.author_name     ORDER BY p.id DESC))[1] AS name,
-                (array_agg(p.author_username ORDER BY p.id DESC))[1] AS username,
-                COUNT(*)                                        AS total,
-                COUNT(*) FILTER (WHERE p.status = 'published')  AS published,
-                COUNT(*) FILTER (WHERE p.status = 'pending')    AS pending,
-                MAX(p.created_at)                               AS last_seen,
-                (b.user_id IS NOT NULL)                         AS banned,
-                b.reason                                        AS ban_reason
-            FROM posts p
-            LEFT JOIN banned_users b ON b.user_id = p.user_id
-            WHERE NOT p.is_own
-              AND ($1::text IS NULL
-                   OR p.author_username ILIKE $1
-                   OR p.author_name ILIKE $1
-                   OR p.user_id::text = $2)
+                s.user_id,
+                s.author_name                             AS name,
+                s.author_username                         AS username,
+                s.total,
+                s.published,
+                (SELECT COUNT(*) FROM posts p
+                  WHERE p.user_id = s.user_id
+                    AND p.status = 'pending')             AS pending,
+                s.last_seen,
+                (b.user_id IS NOT NULL)                   AS banned,
+                b.reason                                  AS ban_reason
+            FROM user_stats s
+            LEFT JOIN banned_users b ON b.user_id = s.user_id
+            WHERE ($1::text IS NULL
+                   OR s.author_username ILIKE $1
+                   OR s.author_name ILIKE $1
+                   OR s.user_id::text = $2)
               AND ($3 = FALSE OR b.user_id IS NOT NULL)
-            GROUP BY p.user_id, b.user_id, b.reason
-            ORDER BY MAX(p.created_at) DESC
+            ORDER BY s.last_seen DESC NULLS LAST
             LIMIT $4
             """,
             pattern,

@@ -18,6 +18,9 @@ CHECK_INTERVAL_SECONDS = 30
 SUBSCRIBER_SAMPLE_INTERVAL_SECONDS = 10 * 60
 CLEANUP_INTERVAL_SECONDS = 24 * 60 * 60
 MESSAGE_MAP_RETENTION = timedelta(days=3)
+# Отработанные посты (published/rejected/cancelled/failed) живут в базе месяц:
+# панель показывает только 15 последних, сводке хватает недели, а база не растёт.
+POSTS_RETENTION = timedelta(days=30)
 
 
 async def run_scheduler(
@@ -48,6 +51,12 @@ async def run_scheduler(
                         logger.info("Очищено %s старых записей message_map", removed)
                 except Exception:
                     logger.exception("Не удалось очистить message_map")
+                try:
+                    removed = await db.purge_old_posts(now - POSTS_RETENTION)
+                    if removed:
+                        logger.info("Очищено %s отработанных постов старше 30 дней", removed)
+                except Exception:
+                    logger.exception("Не удалось очистить старые посты")
                 finally:
                     last_cleanup = now
 
