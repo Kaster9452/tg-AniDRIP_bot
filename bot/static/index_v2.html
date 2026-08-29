@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>__BOT_NAME__ — Панель модерации</title>
+<title id="page-title">__BOT_NAME__ — Панель модерации</title>
 
 <!-- Telegram WebApp SDK -->
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -1183,10 +1183,11 @@ body {
       <div class="brand-eyebrow">
         <span class="live-dot"></span> __BOT_NAME__ MODERATION PRO
       </div>
-      <h1 class="brand-title">Панель <span>управления</span></h1>
+      <h1 class="brand-title" data-i18n="brand_title">Панель <span>управления</span></h1>
     </div>
     <div class="header-actions">
-      <button class="menu-btn" id="tab-btn-people" onclick="switchTab('people')" title="Люди" aria-label="Люди">
+      <button class="menu-btn" id="lang-btn" onclick="toggleLang()" title="Switch language / Сменить язык" aria-label="Switch language">EN</button>
+      <button class="menu-btn" id="tab-btn-people" onclick="switchTab('people')" title="Люди" aria-label="Люди" data-i18n-title="tab_people">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
@@ -1194,14 +1195,14 @@ body {
           <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
         </svg>
       </button>
-      <button class="icon-btn" onclick="toggleAnalytics()" title="Динамика подписчиков"><i class="ph ph-chart-line-up"></i></button>
-      <button class="icon-btn" onclick="refreshState()" title="Обновить данные"><i class="ph ph-arrows-clockwise"></i></button>
+      <button class="icon-btn" onclick="toggleAnalytics()" title="Динамика подписчиков" data-i18n-title="analytics_t"><i class="ph ph-chart-line-up"></i></button>
+      <button class="icon-btn" onclick="refreshState()" title="Обновить данные" data-i18n-title="refresh_t"><i class="ph ph-arrows-clockwise"></i></button>
     </div>
   </header>
 
   <!-- ================= ACCESS NOTICE ================= -->
   <div id="access-notice" hidden style="margin:0 18px 14px; background:rgba(255,92,158,0.08); border:1px solid rgba(255,92,158,0.3); border-radius:14px; padding:12px 14px; font-size:12.5px; color:#FFC0D8;">
-    <b id="access-notice-text">Панель доступна только администраторам.</b>
+    <b id="access-notice-text" data-i18n="access_denied">Панель доступна только администраторам.</b>
   </div>
 
 
@@ -1209,19 +1210,19 @@ body {
   <div class="stats-grid">
     <div class="stat-pill stat-pending">
       <b id="count-pending">—</b>
-      <span>Новые</span>
+      <span data-i18n="stat_new">Новые</span>
     </div>
     <div class="stat-pill stat-scheduled">
       <b id="count-scheduled">—</b>
-      <span>В очереди</span>
+      <span data-i18n="stat_queued">В очереди</span>
     </div>
     <div class="stat-pill stat-published">
       <b id="count-published">—</b>
-      <span>За сегодня</span>
+      <span data-i18n="stat_today">За сегодня</span>
     </div>
-    <div class="stat-pill stat-subs" onclick="toggleAnalytics()" style="cursor:pointer;" title="Динамика подписчиков">
+    <div class="stat-pill stat-subs" onclick="toggleAnalytics()" style="cursor:pointer;" title="Динамика подписчиков" data-i18n-title="analytics_t">
       <b id="count-subs">—</b>
-      <span>Подписчики</span>
+      <span data-i18n="stat_subs">Подписчики</span>
     </div>
   </div>
 
@@ -1229,13 +1230,13 @@ body {
   <div class="search-filter-bar">
     <div class="search-input-wrapper">
       <i class="ph ph-magnifying-glass"></i>
-      <input type="text" class="search-input" id="search-input" placeholder="Поиск по тексту, автору, #ID..." oninput="handleSearch(this.value)">
+      <input type="text" class="search-input" id="search-input" placeholder="Поиск по тексту, автору, #ID..." data-i18n-ph="search_ph" oninput="handleSearch(this.value)">
     </div>
     <button class="filter-chip-btn" id="filter-albums-btn" onclick="toggleFilterAlbums()">
-      <i class="ph ph-images"></i> Альбомы
+      <i class="ph ph-images"></i> <span data-i18n="albums">Альбомы</span>
     </button>
     <button class="filter-chip-btn" id="filter-banned-btn" onclick="toggleFilterBanned()" style="display:none;">
-      <i class="ph ph-prohibit"></i> Только бан
+      <i class="ph ph-prohibit"></i> <span data-i18n="only_banned">Только бан</span>
     </button>
   </div>
 
@@ -1243,27 +1244,27 @@ body {
   <div class="create-banner" onclick="openCreateModal()">
     <div class="create-icon">＋</div>
     <div class="create-text">
-      <h4>Создать свой пост</h4>
-      <p>Текст, фото, видео или альбом в один клик</p>
+      <h4 data-i18n="create_title">Создать свой пост</h4>
+      <p data-i18n="create_sub">Текст, фото, видео или альбом в один клик</p>
     </div>
     <div class="create-next">
       <span id="banner-next-slot">14:00</span>
-      <small>Ближ. слот</small>
+      <small data-i18n="next_slot">Ближ. слот</small>
     </div>
   </div>
 
   <!-- ================= TABS NAVIGATION ================= -->
   <div class="nav-tabs">
     <button class="nav-tab active" id="tab-btn-pending" onclick="switchTab('pending')">
-      <span>Предложка</span>
+      <span data-i18n="tab_pending">Предложка</span>
       <span class="nav-tab-badge" id="tab-badge-pending">—</span>
     </button>
     <button class="nav-tab" id="tab-btn-scheduled" onclick="switchTab('scheduled')">
-      <span>Отложка</span>
+      <span data-i18n="tab_scheduled">Отложка</span>
       <span class="nav-tab-badge" style="color:var(--citrus); background:rgba(255,209,102,0.15);" id="tab-badge-scheduled">—</span>
     </button>
     <button class="nav-tab" id="tab-btn-published" onclick="switchTab('published')">
-      <span>Архив</span>
+      <span data-i18n="tab_published">Архив</span>
     </button>
     </div>
 
@@ -1279,18 +1280,18 @@ body {
   <div class="nav-inner">
     <button class="nav-item active" id="bnav-pending" onclick="switchTab('pending')">
       <i class="ph-fill ph-tray"></i>
-      <span>Предложка</span>
+      <span data-i18n="tab_pending">Предложка</span>
       <span class="nav-badge-float" id="float-badge-pending">—</span>
     </button>
     <button class="nav-item" onclick="openCreateModal()">
       <div style="background:var(--rose); color:#1A0A12; width:34px; height:34px; border-radius:10px; display:grid; place-items:center; font-size:18px; margin-top:-6px; box-shadow:0 4px 12px var(--rose-glow);">
         <i class="ph-bold ph-plus"></i>
       </div>
-      <span style="color:var(--rose); font-weight:700;">Создать</span>
+      <span style="color:var(--rose); font-weight:700;" data-i18n="create">Создать</span>
     </button>
     <button class="nav-item" id="bnav-scheduled" onclick="switchTab('scheduled')">
       <i class="ph-fill ph-calendar-check"></i>
-      <span>Отложка</span>
+      <span data-i18n="tab_scheduled">Отложка</span>
     </button>
   </div>
 </nav>
@@ -1300,34 +1301,34 @@ body {
 <div class="bottom-sheet" id="create-modal">
   <div class="sheet-handle"></div>
   <div class="sheet-header">
-    <h3 class="sheet-title">Свой пост в канал</h3>
+    <h3 class="sheet-title" data-i18n="own_title">Свой пост в канал</h3>
     <button class="icon-btn" onclick="closeCreateModal()"><i class="ph ph-x"></i></button>
   </div>
 
-    <p style="font-size:11px; color:var(--mist); margin-bottom:12px;">Текст экранируется сервером: HTML-теги не работают, эмодзи поддерживаются.</p>
+    <p style="font-size:11px; color:var(--mist); margin-bottom:12px;" data-i18n="own_note">Текст экранируется сервером: HTML-теги не работают, эмодзи поддерживаются.</p>
 
-  <textarea class="form-textarea" id="own-post-text" placeholder="Текст поста..." oninput="updateCharCount(this)"></textarea>
+  <textarea class="form-textarea" id="own-post-text" placeholder="Текст поста..." data-i18n-ph="own_text_ph" oninput="updateCharCount(this)"></textarea>
   <div class="char-counter" id="own-char-count">0 / 4096</div>
 
-  <div class="step-title">Медиафайлы (до 10: фото или видео)</div>
+  <div class="step-title" data-i18n="media_step">Медиафайлы (до 10: фото или видео)</div>
   <input type="file" id="ownFileInput" accept="image/*,video/*" multiple hidden>
   <div id="own-media-previews" style="display:flex; gap:8px; overflow-x:auto; padding-bottom:8px; margin-bottom:12px;">
     <!-- Uploaded media items -->
     <div onclick="document.getElementById('ownFileInput').click()" style="width:68px; height:68px; border-radius:12px; border:2px dashed var(--haze); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; color:var(--mist); cursor:pointer; flex-shrink:0;">
       <i class="ph ph-image-plus" style="font-size:20px;"></i>
-      <span style="font-size:9px; font-weight:700;">+ Медиа</span>
+      <span style="font-size:9px; font-weight:700;" data-i18n="add_media">+ Медиа</span>
     </div>
   </div>
 
-  <div class="step-title">Выбор слота для публикации</div>
+  <div class="step-title" data-i18n="own_slot_step">Выбор слота для публикации</div>
   <div class="day-selector" id="own-day-selector"></div>
 
   <div class="slots-grid" id="own-slots-grid">
     <!-- Slot Cells -->
   </div>
 
-    <input type="text" id="own-when-custom" class="form-input" placeholder="или своё: 25.08 20:00 (по желанию)" style="margin-bottom:16px;">
-  <button class="btn btn-publish" style="width:100%;" onclick="submitOwnPost()"><i class="ph-bold ph-paper-plane-tilt"></i> Отложить в канал</button>
+    <input type="text" id="own-when-custom" class="form-input" placeholder="или своё: 25.08 20:00 (по желанию)" data-i18n-ph="custom_when_ph" style="margin-bottom:16px;">
+  <button class="btn btn-publish" style="width:100%;" onclick="submitOwnPost()"><i class="ph-bold ph-paper-plane-tilt"></i> <span data-i18n="own_submit">Отложить в канал</span></button>
 </div>
 
 <!-- ================= MODAL: EDIT POST TEXT & MEDIA ================= -->
@@ -1335,32 +1336,32 @@ body {
 <div class="bottom-sheet" id="edit-modal">
   <div class="sheet-handle"></div>
   <div class="sheet-header">
-    <h3 class="sheet-title">Редактировать пост #<span id="edit-post-id"></span></h3>
+    <h3 class="sheet-title"><span data-i18n="edit_title">Редактировать пост #</span><span id="edit-post-id"></span></h3>
     <button class="icon-btn" onclick="closeEditModal()"><i class="ph ph-x"></i></button>
   </div>
   
-    <p style="font-size:11px; color:var(--mist); margin-bottom:12px;">Форматирование не сохранится — текст станет обычным.</p>
+    <p style="font-size:11px; color:var(--mist); margin-bottom:12px;" data-i18n="edit_note">Форматирование не сохранится — текст станет обычным.</p>
   <textarea class="form-textarea" id="edit-post-textarea" style="min-height:110px;" oninput="updateEditCharCount(this)"></textarea>
   <div style="display:flex; justify-content:flex-end; font-size:11px; color:var(--mist); margin-top:4px; margin-bottom:12px;">
     <span id="edit-char-count">0</span> / 4096
   </div>
 
-  <div class="step-title">Медиафайлы поста (до 10: фото или видео)</div>
+  <div class="step-title" data-i18n="edit_media_step">Медиафайлы поста (до 10: фото или видео)</div>
   <input type="file" id="editFileInput" accept="image/*,video/*" multiple hidden>
   <div id="edit-media-previews" style="display:flex; gap:8px; overflow-x:auto; padding-bottom:8px; margin-bottom:12px;">
     <!-- Rendered dynamically -->
   </div>
 
   <div id="edit-schedule-section" style="margin-top:6px;">
-    <div class="step-title">Перенести на другое время</div>
+    <div class="step-title" data-i18n="edit_move_step">Перенести на другое время</div>
     <div class="day-selector" id="edit-day-selector"></div>
     <div class="slots-grid" id="edit-slots-grid">
       <!-- Edit Slot Cells -->
     </div>
   </div>
 
-    <input type="text" id="edit-when-custom" class="form-input" placeholder="или своё: 25.08 20:00 (по желанию)" style="margin-bottom:12px;">
-  <button class="btn btn-publish" style="width:100%; margin-top:12px;" onclick="saveEditedPost()">Сохранить изменения</button>
+    <input type="text" id="edit-when-custom" class="form-input" placeholder="или своё: 25.08 20:00 (по желанию)" data-i18n-ph="custom_when_ph" style="margin-bottom:12px;">
+  <button class="btn btn-publish" style="width:100%; margin-top:12px;" onclick="saveEditedPost()"><span data-i18n="edit_save">Сохранить изменения</span></button>
 </div>
 
 <!-- ================= MODAL: REJECT POST ================= -->
@@ -1368,13 +1369,13 @@ body {
 <div class="bottom-sheet" id="reject-modal">
   <div class="sheet-handle"></div>
   <div class="sheet-header">
-    <h3 class="sheet-title">Отклонить пост #<span id="reject-post-id"></span></h3>
+    <h3 class="sheet-title"><span data-i18n="reject_title">Отклонить пост #</span><span id="reject-post-id"></span></h3>
     <button class="icon-btn" onclick="closeRejectModal()"><i class="ph ph-x"></i></button>
   </div>
-    <p style="font-size:12.5px; color:var(--mist); margin-bottom:12px;">Пост исчезнет из предложки. Автор не получит уведомление.</p>
+    <p style="font-size:12.5px; color:var(--mist); margin-bottom:12px;" data-i18n="reject_note">Пост исчезнет из предложки. Автор не получит уведомление.</p>
   <div style="display:flex; gap:8px;">
-    <button class="btn btn-publish" style="flex:1;" onclick="confirmReject()"><i class="ph-bold ph-trash"></i> Отклонить</button>
-    <button class="btn btn-ghost" style="flex:1;" onclick="closeRejectModal()">Отмена</button>
+    <button class="btn btn-publish" style="flex:1;" onclick="confirmReject()"><i class="ph-bold ph-trash"></i> <span data-i18n="reject_do">Отклонить</span></button>
+    <button class="btn btn-ghost" style="flex:1;" onclick="closeRejectModal()" data-i18n="cancel">Отмена</button>
   </div>
 </div>
 
@@ -1383,25 +1384,25 @@ body {
 <div class="bottom-sheet" id="analytics-modal">
   <div class="sheet-handle"></div>
   <div class="sheet-header">
-    <h3 class="sheet-title">Динамика подписчиков</h3>
+    <h3 class="sheet-title" data-i18n="subs_dynamics">Динамика подписчиков</h3>
     <button class="icon-btn" onclick="toggleAnalytics()"><i class="ph ph-x"></i></button>
   </div>
-  <p style="font-size:12px; color:var(--mist); margin-bottom:12px;">История подписчиков канала за 30 дней (приходит из /api/state)</p>
+  <p style="font-size:12px; color:var(--mist); margin-bottom:12px;" data-i18n="subs_note">История подписчиков канала за 30 дней (приходит из /api/state)</p>
   <div style="height:190px; width:100%; margin-bottom:16px;">
     <canvas id="analyticsChart"></canvas>
   </div>
   <div style="background:var(--ink); border:1px solid var(--haze); border-radius:14px; padding:12px; display:flex; justify-content:space-around; text-align:center;">
     <div>
       <b style="font-family:'JetBrains Mono'; color:var(--mint); font-size:16px;" id="subs-current">—</b>
-      <span style="display:block; font-size:10px; color:var(--mist); margin-top:2px;">Сейчас</span>
+      <span style="display:block; font-size:10px; color:var(--mist); margin-top:2px;" data-i18n="subs_now">Сейчас</span>
     </div>
     <div>
       <b style="font-family:'JetBrains Mono'; color:var(--rose); font-size:16px;" id="subs-month">—</b>
-      <span style="display:block; font-size:10px; color:var(--mist); margin-top:2px;">За 30 дней</span>
+      <span style="display:block; font-size:10px; color:var(--mist); margin-top:2px;" data-i18n="subs_month30">За 30 дней</span>
     </div>
     <div>
       <b style="font-family:'JetBrains Mono'; color:var(--citrus); font-size:16px;" id="subs-today">—</b>
-      <span style="display:block; font-size:10px; color:var(--mist); margin-top:2px;">За сегодня</span>
+      <span style="display:block; font-size:10px; color:var(--mist); margin-top:2px;" data-i18n="subs_today">За сегодня</span>
     </div>
   </div>
 </div>
@@ -1413,20 +1414,20 @@ body {
       <i class="ph-fill ph-images"></i>
       <span id="viewer-counter">1 / 1</span>
     </div>
-    <button class="viewer-close" onclick="closeMediaViewer()" title="Закрыть (Esc)"><i class="ph-bold ph-x"></i></button>
+    <button class="viewer-close" onclick="closeMediaViewer()" title="Закрыть (Esc)" data-i18n-title="close_t"><i class="ph-bold ph-x"></i></button>
   </div>
 
   <div class="viewer-body">
-    <button class="viewer-nav-btn prev" id="viewer-prev-btn" onclick="viewerPrev()" title="Предыдущее фото (←)"><i class="ph-bold ph-caret-left"></i></button>
+    <button class="viewer-nav-btn prev" id="viewer-prev-btn" onclick="viewerPrev()" title="Предыдущее фото (←)" data-i18n-title="prev_photo_t"><i class="ph-bold ph-caret-left"></i></button>
     <div class="viewer-img-container" id="viewer-img-container">
       <img id="viewer-img" src="" alt="Fullscreen preview">
       <div class="viewer-loader" id="viewer-loader" style="display:none;">
         <div class="viewer-spinner"></div>
-        <span>Загружается…</span>
+        <span data-i18n="loading_word">Загружается…</span>
       </div>
       <video id="viewer-video" controls playsinline style="display:none; max-width:100%; max-height:64vh; border-radius:12px; box-shadow:0 12px 48px rgba(0,0,0,0.7);"></video>
     </div>
-    <button class="viewer-nav-btn next" id="viewer-next-btn" onclick="viewerNext()" title="Следующее фото (→)"><i class="ph-bold ph-caret-right"></i></button>
+    <button class="viewer-nav-btn next" id="viewer-next-btn" onclick="viewerNext()" title="Следующее фото (→)" data-i18n-title="next_photo_t"><i class="ph-bold ph-caret-right"></i></button>
   </div>
 
   <div class="viewer-thumbs-wrapper" id="viewer-thumbs-container">
@@ -1435,7 +1436,7 @@ body {
 </div>
 
 <!-- ================= TOAST SYSTEM ================= -->
-<div class="toast-msg" id="toast"><i class="ph-fill ph-check-circle"></i> <span id="toast-text">Готово</span></div>
+<div class="toast-msg" id="toast"><i class="ph-fill ph-check-circle"></i> <span id="toast-text" data-i18n="done_word">Готово</span></div>
 
 <!-- ================= JAVASCRIPT STATE & APP ENGINE ================= -->
 <script>
@@ -1462,6 +1463,433 @@ const avatarCache = {};     // userId -> data:image/... | null
 
 const OWN_FILES_LIMIT = 10;
 
+/* ═══════════════════════ i18n: русский / английский ═══════════════════════
+   Выбор языка хранится в localStorage ('anidrip-lang'). Статика страницы
+   переводится через data-i18n / data-i18n-title / data-i18n-ph, динамические
+   строки — через tr('ключ'). Ответы сервера (дни, короткие статусы)
+   переводятся на клиенте в serverMessage() и dayName(). На сервер по-прежнему
+   уходят русские названия дней — он их так и понимает. */
+
+const I18N = {
+  ru: {
+    // шапка и статы
+    brand_title: 'Панель <span>управления</span>',
+    access_denied: 'Панель доступна только администраторам.',
+    stat_new: 'Новые', stat_queued: 'В очереди', stat_today: 'За сегодня', stat_subs: 'Подписчики',
+    analytics_t: 'Динамика подписчиков', refresh_t: 'Обновить данные', tab_people_t: 'Люди',
+    // поиск и фильтры
+    search_ph: 'Поиск по тексту, автору, #ID...',
+    albums: 'Альбомы', only_banned: 'Только бан',
+    // баннер создания
+    create_title: 'Создать свой пост', create_sub: 'Текст, фото, видео или альбом в один клик',
+    next_slot: 'Ближ. слот',
+    // вкладки
+    tab_pending: 'Предложка', tab_scheduled: 'Отложка', tab_published: 'Архив', tab_people: 'Люди',
+    create: 'Создать',
+    // пустые состояния
+    inbox_empty_t: 'Предложка пуста',
+    inbox_empty_s: 'Новые посты от подписчиков появятся здесь',
+    queue_empty_t: 'Очередь пуста',
+    queue_empty_s: 'Возьмите пост из предложки или создайте свой',
+    log_empty_t: 'Архив пуст',
+    log_empty_s: 'Опубликованные посты сохранятся здесь',
+    people_empty_t: 'Пока никто не писал',
+    people_empty_s: 'Здесь появятся авторы постов',
+    // карточка поста
+    too_late_t: 'Слот уже прошёл',
+    too_late_s: 'Выберите новое время в сетке',
+    new_line: 'новый', queue_word: 'в очереди',
+    offered: 'Предложка', self_post: 'Свой пост',
+    via_panel: 'через панель', via_bot: 'в боте',
+    nothing: 'без текста',
+    pick_time: 'Выбрать время', publish_now: 'Опубликовать',
+    edit: 'Изменить', postpone: 'Отложить', reject_w: 'Отклонить',
+    ban_short: 'Бан', unban_short: 'Разбан',
+    slot_taken: 'Слот занят', slot_free: 'Свободен',
+    choose_slot: 'Выбрать слот',
+    change_time: 'Вписать время',
+    photo_word: 'фото', video_word: 'видео', document_word: 'файл', audio_word: 'аудио',
+    animation_word: 'гиф', voice_word: 'голосовое', sticker_word: 'стикер', video_note_word: 'кружок',
+    // своя сетка слотов
+    past_slot: 'Уже прошло', taken_slot: 'Занят', free_slot: 'Свободно', chosen_slot: 'Выбрано',
+    sugg_tag: 'предложка', own_tag: 'свой пост',
+    edit_past_slot: 'Прошёл', edit_now_slot: 'Сейчас',
+    // люди
+    people_search_ph: 'Поиск по имени или @username...',
+    sent_word: 'отправил', pub_word: 'в канале', wait_word: 'ждут',
+    ban_badge: 'бан',
+    // модалка «Свой пост»
+    own_title: 'Свой пост в канал',
+    own_note: 'Текст экранируется сервером: HTML-теги не работают, эмодзи поддерживаются.',
+    own_text_ph: 'Текст поста...',
+    media_step: 'Медиафайлы (до 10: фото или видео)',
+    add_media: '+ Медиа', add_photo: '+ Фото',
+    own_slot_step: 'Выбор слота для публикации',
+    custom_when_ph: 'или своё: 25.08 20:00 (по желанию)',
+    own_submit: 'Отложить в канал',
+    // модалка редактирования
+    edit_title: 'Редактировать пост #',
+    edit_note: 'Форматирование не сохранится — текст станет обычным.',
+    edit_media_step: 'Медиафайлы поста (до 10: фото или видео)',
+    edit_move_step: 'Перенести на другое время',
+    edit_save: 'Сохранить изменения',
+    // модалка отклонения
+    reject_title: 'Отклонить пост #',
+    reject_note: 'Пост исчезнет из предложки. Автор не получит уведомление.',
+    reject_do: 'Отклонить', cancel: 'Отмена',
+    // аналитика
+    subs_dynamics: 'Динамика подписчиков',
+    subs_note: 'История подписчиков канала за 30 дней',
+    subs_now: 'Сейчас', subs_change: 'Изменение', subs_today: 'За сегодня',
+    // тосты и подтверждения
+    need_text_or_media: 'Напишите текст или прикрепите фото/видео',
+    too_long: (n) => `Слишком длинный текст: максимум ${n} символов`,
+    need_slot: 'Выберите слот для публикации',
+    postponed: 'Отложено',
+    scheduled_word: 'Запланировано',
+    need_time: 'Выберите время в сетке или впишите своё',
+    published_word: 'Опубликовано',
+    unpublished: 'Снято с публикации',
+    saved_changes: 'Изменения сохранены',
+    rejected_word: 'Отклонено',
+    unbanned: 'Блокировка снята',
+    banned_word: 'Заблокирован',
+    posts_removed: (n) => `, постов убрано: ${n}`,
+    only_scheduled_editable: 'Редактировать можно только отложенные посты',
+    need_text_or_file: 'Нужен текст или хотя бы один файл',
+    slot_busy_or_past: 'Слот занят или уже прошёл',
+    files_limit: (n) => `Можно приложить не больше ${n} файлов`,
+    only_photo_video: 'Поддерживаются только фото и видео',
+    file_read_error: 'Не удалось прочитать файл',
+    ban_reason_ph: 'Причина бана (необязательно)',
+    ban_confirm: 'Забанить',
+    // второй набор
+    subs_month30: 'За 30 дней',
+    close_t: 'Закрыть (Esc)', prev_photo_t: 'Предыдущее фото (←)', next_photo_t: 'Следующее фото (→)',
+    loading_word: 'Загружается…', done_word: 'Готово',
+    media_word: 'медиа', ban_author_t: 'Заблокировать автора',
+    panel_tab: 'Панель модерации',
+    publish_mode: 'Режим публикации:', anon: 'Анонимно', signed: 'С подписью',
+    when_publish: 'Когда опубликовать?', custom_short_ph: 'или своё: 25.08 20:00',
+    from: 'от', scheduled_by: 'отложил:', signed_low: 'с подписью', anon_low: 'анонимно',
+    now: 'Сейчас', unpublish_t: 'Снять', wrote: 'писал', reason: 'Причина:',
+    unban_long: 'Разблокировать', ban_long: 'Заблокировать',
+    not_found_t: 'Постов не найдено', change_search_s: 'Измените параметры поиска.',
+    all_done_s: 'Всё обработано — новых предложек нет.',
+    people_none_t: 'Никого не нашлось', no_banned_s: 'Заблокированных нет.',
+    try_other_s: 'Попробуйте другое имя или ID.', nobody_yet_s: 'Пока никто не писал боту.',
+    queue_empty_t: 'Отложка пуста',
+    queue_empty_s: 'Запланируйте посты из предложки или создайте новый.',
+    pub_empty_t: 'Пока ничего не опубликовано',
+    pub_empty_s: 'Опубликованные посты появятся здесь.',
+    media_load_fail: 'Не удалось загрузить медиа',
+    ban_from_post_q: (author, id) => `Забанить ${author} (ID: ${id}) и убрать его посты?`,
+    ban_author_q: 'Забанить автора поста?', ban_user_title: 'Бан пользователя',
+    ban_person_q: (handle, id) => `Заблокировать ${handle} (ID: ${id})?`,
+    ban_person_q2: 'Заблокировать пользователя?', ban_via_panel: 'Заблокирован через панель',
+    yes: 'Да', server_no_reply: 'Сервер не ответил', something_went_wrong: 'Что-то пошло не так',
+    album_word: 'альбом', publish_btn: 'Опубликовать', to_queue_btn: 'В отложку',
+    reject_t: 'Отклонить', edit_btn: 'Изменить', no_text: 'без текста',
+    stat_sent: 'прислал', stat_pub: 'в канале', stat_wait: 'ждёт',
+    // дни и относительное время
+    days: ['сегодня', 'завтра', 'послезавтра'],
+    yesterday: 'вчера',
+    just_now: 'только что',
+    min_ago: (n) => `${n} мин назад`,
+    hour_ago: (n) => `${n} ч назад`,
+    days_ago: (n) => `${n} дн назад`,
+  },
+  en: {
+    brand_title: 'Control <span>Panel</span>',
+    access_denied: 'Panel is available to group admins only.',
+    stat_new: 'New', stat_queued: 'Queued', stat_today: 'Today', stat_subs: 'Subscribers',
+    analytics_t: 'Subscriber stats', refresh_t: 'Refresh data', tab_people_t: 'People',
+    search_ph: 'Search by text, author, #ID...',
+    albums: 'Albums', only_banned: 'Banned only',
+    create_title: 'Create your own post', create_sub: 'Text, photo, video or album in one tap',
+    next_slot: 'Next slot',
+    tab_pending: 'Inbox', tab_scheduled: 'Queue', tab_published: 'Archive', tab_people: 'People',
+    create: 'Create',
+    inbox_empty_t: 'Inbox is empty',
+    inbox_empty_s: 'New posts from subscribers will appear here',
+    queue_empty_t: 'Queue is empty',
+    queue_empty_s: 'Pick a post from the inbox or create your own',
+    log_empty_t: 'Archive is empty',
+    log_empty_s: 'Published posts will be stored here',
+    people_empty_t: 'No one has written yet',
+    people_empty_s: 'Post authors will appear here',
+    too_late_t: 'Slot has passed',
+    too_late_s: 'Pick a new time on the grid',
+    new_line: 'new', queue_word: 'in queue',
+    offered: 'Inbox', self_post: 'Own post',
+    via_panel: 'via panel', via_bot: 'in bot',
+    nothing: 'no text',
+    pick_time: 'Pick time', publish_now: 'Publish',
+    edit: 'Edit', postpone: 'Postpone', reject_w: 'Reject',
+    ban_short: 'Ban', unban_short: 'Unban',
+    slot_taken: 'Slot taken', slot_free: 'Free',
+    choose_slot: 'Pick a slot',
+    change_time: 'Type a time',
+    photo_word: 'photo', video_word: 'video', document_word: 'file', audio_word: 'audio',
+    animation_word: 'gif', voice_word: 'voice', sticker_word: 'sticker', video_note_word: 'circle',
+    past_slot: 'Passed', taken_slot: 'Taken', free_slot: 'Free', chosen_slot: 'Selected',
+    sugg_tag: 'inbox', own_tag: 'own post',
+    edit_past_slot: 'Passed', edit_now_slot: 'Now',
+    people_search_ph: 'Search by name or @username...',
+    sent_word: 'sent', pub_word: 'in channel', wait_word: 'waiting',
+    ban_badge: 'BAN',
+    own_title: 'Your post to the channel',
+    own_note: 'Text is escaped by the server: HTML tags do not work, emoji do.',
+    own_text_ph: 'Post text...',
+    media_step: 'Media files (up to 10: photo or video)',
+    add_media: '+ Media', add_photo: '+ Photo',
+    own_slot_step: 'Choose a publishing slot',
+    custom_when_ph: 'or custom: 25.08 20:00 (optional)',
+    own_submit: 'Schedule to channel',
+    edit_title: 'Edit post #',
+    edit_note: 'Formatting will be lost — text becomes plain.',
+    edit_media_step: 'Post media files (up to 10: photo or video)',
+    edit_move_step: 'Move to another time',
+    edit_save: 'Save changes',
+    reject_title: 'Reject post #',
+    reject_note: 'The post will disappear from the inbox. The author will not be notified.',
+    reject_do: 'Reject', cancel: 'Cancel',
+    subs_dynamics: 'Subscriber dynamics',
+    subs_note: 'Channel subscriber history for the last 30 days',
+    subs_now: 'Now', subs_change: 'Change', subs_today: 'Today',
+    need_text_or_media: 'Write some text or attach a photo/video',
+    too_long: (n) => `Text is too long: ${n} characters max`,
+    need_slot: 'Pick a slot for publishing',
+    postponed: 'Scheduled',
+    scheduled_word: 'Scheduled',
+    need_time: 'Pick a time on the grid or type your own',
+    published_word: 'Published',
+    unpublished: 'Removed from queue',
+    saved_changes: 'Changes saved',
+    rejected_word: 'Rejected',
+    unbanned: 'User unbanned',
+    banned_word: 'Banned',
+    posts_removed: (n) => `, posts removed: ${n}`,
+    only_scheduled_editable: 'Only scheduled posts can be edited',
+    need_text_or_file: 'Text or at least one file is required',
+    slot_busy_or_past: 'Slot is taken or has passed',
+    files_limit: (n) => `You can attach up to ${n} files`,
+    only_photo_video: 'Only photos and videos are supported',
+    file_read_error: 'Failed to read the file',
+    ban_reason_ph: 'Ban reason (optional)',
+    ban_confirm: 'Ban',
+    subs_month30: '30 days',
+    close_t: 'Close (Esc)', prev_photo_t: 'Previous photo (←)', next_photo_t: 'Next photo (→)',
+    loading_word: 'Loading…', done_word: 'Done',
+    media_word: 'media', ban_author_t: 'Ban author',
+    panel_tab: 'Moderation panel',
+    publish_mode: 'Publish mode:', anon: 'Anonymous', signed: 'Signed',
+    when_publish: 'When to publish?', custom_short_ph: 'or custom: 25.08 20:00',
+    from: 'from', scheduled_by: 'scheduled by:', signed_low: 'signed', anon_low: 'anonymous',
+    now: 'Now', unpublish_t: 'Unschedule', wrote: 'wrote', reason: 'Reason:',
+    unban_long: 'Unban', ban_long: 'Ban',
+    not_found_t: 'No posts found', change_search_s: 'Change the search filters.',
+    all_done_s: 'All caught up — no new submissions.',
+    people_none_t: 'No one found', no_banned_s: 'No banned users.',
+    try_other_s: 'Try another name or ID.', nobody_yet_s: 'Nobody has written to the bot yet.',
+    queue_empty_t: 'Queue is empty',
+    queue_empty_s: 'Schedule posts from the inbox or create a new one.',
+    pub_empty_t: 'Nothing published yet',
+    pub_empty_s: 'Published posts will appear here.',
+    media_load_fail: 'Failed to load media',
+    ban_from_post_q: (author, id) => `Ban ${author} (ID: ${id}) and remove their posts?`,
+    ban_author_q: 'Ban the post author?', ban_user_title: 'Ban user',
+    ban_person_q: (handle, id) => `Ban ${handle} (ID: ${id})?`,
+    ban_person_q2: 'Ban this user?', ban_via_panel: 'Banned via panel',
+    yes: 'Yes', server_no_reply: 'Server did not respond', something_went_wrong: 'Something went wrong',
+    album_word: 'album', publish_btn: 'Publish', to_queue_btn: 'Queue',
+    reject_t: 'Reject', edit_btn: 'Edit', no_text: 'no text',
+    stat_sent: 'sent', stat_pub: 'in channel', stat_wait: 'waiting',
+    days: ['today', 'tomorrow', 'day after tomorrow'],
+    yesterday: 'yesterday',
+    just_now: 'just now',
+    min_ago: (n) => `${n} min ago`,
+    hour_ago: (n) => `${n} h ago`,
+    days_ago: (n) => `${n} d ago`,
+  },
+};
+
+let lang = 'ru';
+try {
+  // приоритет: ?lang=en|ru в адресе → сохранённый выбор → язык Telegram/браузера
+  const q = new URLSearchParams(location.search).get('lang');
+  if (q === 'en' || q === 'ru') {
+    lang = q;
+  } else {
+    const saved = localStorage.getItem('anidrip-lang');
+    if (saved === 'ru' || saved === 'en') {
+      lang = saved;
+    } else {
+      const ui = (tg?.initDataUnsafe?.user?.language_code || navigator.language || 'ru').toLowerCase();
+      lang = ui.startsWith('en') ? 'en' : 'ru';
+    }
+  }
+} catch (_) {}
+
+/* короткий доступ к переводу: tr('ключ') или tr('ключ', ...аргументы).
+   Имя tr, потому что t в этом файле уже занято (переменная цикла/цель клика). */
+function tr(key, ...args) {
+  const dict = I18N[lang] || I18N.ru;
+  const v = dict[key] !== undefined ? dict[key] : I18N.ru[key];
+  return typeof v === 'function' ? v(...args) : v;
+}
+
+/* перевод известных фраз сервера; неизвестное возвращаем как есть */
+const SERVER_PHRASES = {
+  'Опубликовано': 'published_word',
+  'Отложено': 'postponed',
+  'Снято с публикации': 'unpublished',
+  'Изменения сохранены': 'saved_changes',
+  'Отклонено': 'rejected_word',
+  'Блокировка снята': 'unbanned',
+  'Заблокирован': 'banned_word',
+};
+
+const SERVER_ERRORS = {
+  'Не выбран день': 'need_slot',
+  'Не указан номер поста': 'need_slot',
+  'Пост не найден': 'only_scheduled_editable',
+  'Этот пост уже опубликован': 'published_word',
+  'Это время уже прошло': 'slot_busy_or_past',
+  'Этот пост не запланирован': 'only_scheduled_editable',
+  'Редактировать можно только отложенные посты': 'only_scheduled_editable',
+  'Нужен текст или хотя бы один файл': 'need_text_or_file',
+  'Не указаны пользователи': 'need_slot',
+  'Не указан пользователь': 'need_slot',
+  'Этот пользователь не заблокирован': 'unbanned',
+  'Некорректный запрос': 'need_time',
+  'Панель доступна только администраторам группы': 'access_denied',
+  'Не удалось проверить права в группе': 'access_denied',
+  'Такого элемента альбома нет': 'file_read_error',
+  'У этого поста нет фото': 'file_read_error',
+  'У этого поста нет файла': 'file_read_error',
+  'Не удалось загрузить фото': 'file_read_error',
+  'Не удалось загрузить медиа': 'file_read_error',
+  'Сервер не ответил': 'server_no_reply',
+  'Поддерживаются только фото и видео': 'only_photo_video',
+  'Не удалось прочитать файл': 'file_read_error',
+};
+
+function serverMessage(text) {
+  if (lang !== 'en' || typeof text !== 'string') return text;
+  for (const [ru, key] of Object.entries(SERVER_PHRASES)) {
+    if (text === ru) return tr(key);
+    if (text.startsWith(ru)) {
+      const rest = text.slice(ru.length);
+      // «Заблокирован, постов убрано: 2»
+      const m = rest.match(/^,\s*постов убрано:\s*(\d+)$/);
+      if (m) return tr('banned_word') + tr('posts_removed', +m[1]);
+      // «Запланировано на 25.08 18:00»
+      if (rest.startsWith(' на ')) return `${tr('scheduled_word')} ${rest.slice(3)}`;
+      return tr(key) + rest;
+    }
+  }
+  for (const [ru, key] of Object.entries(SERVER_ERRORS)) {
+    if (text === ru) return tr(key);
+  }
+  let m = text.match(/^Не больше (\d+) файлов в одном посте$/);
+  if (m) return tr('files_limit', +m[1]);
+  m = text.match(/^Слишком длинный текст: максимум (\d+) символов$/);
+  if (m) return tr('too_long', +m[1]);
+  return text;
+}
+
+/* медиа-подпись сервера: «фото», «видео», «гиф» */
+const MEDIA_KEYS = {
+  'фото': 'photo_word', 'видео': 'video_word', 'файл': 'document_word',
+  'аудио': 'audio_word', 'гиф': 'animation_word', 'голосовое': 'voice_word',
+  'стикер': 'sticker_word', 'кружок': 'video_note_word',
+};
+function mediaText(s) {
+  if (lang !== 'en' || typeof s !== 'string') return s;
+  const key = MEDIA_KEYS[s.trim()];
+  return key ? tr(key) : s;
+}
+
+/* Сервер присылает названия дней по-русски («сегодня», «завтра»).
+   Для показа переводим, а при отправке на сервер оставляем как есть —
+   сервер понимает только русские названия. */
+const DAY_KEY_BY_RU = { 'сегодня': 0, 'завтра': 1, 'послезавтра': 2 };
+
+function dayName(name) {
+  if (lang !== 'en' || typeof name !== 'string') return name;
+  const idx = DAY_KEY_BY_RU[name.trim().toLowerCase()];
+  if (idx === undefined) return name;
+  return (I18N.en.days || [])[idx] || name;
+}
+
+/* «завтра 09:00» → «tomorrow 09:00» (только для показа) */
+function whenText(s) {
+  if (lang !== 'en' || typeof s !== 'string') return s;
+  const m = s.match(/^(\S+)\s+(.+)$/);
+  if (m) {
+    const d = dayName(m[1]);
+    if (d !== m[1]) return `${d} ${m[2]}`;
+  }
+  return s;
+}
+
+/* «5 мин назад» → «5 min ago» (приходит из /api/people) */
+function agoText(s) {
+  if (lang !== 'en' || typeof s !== 'string') return s;
+  let m = s.match(/^(\d+)\s*мин назад$/);
+  if (m) return tr('min_ago', +m[1]);
+  m = s.match(/^(\d+)\s*ч назад$/);
+  if (m) return tr('hour_ago', +m[1]);
+  m = s.match(/^(\d+)\s*дн назад$/);
+  if (m) return tr('days_ago', +m[1]);
+  if (s === 'только что') return tr('just_now');
+  if (s === 'вчера') return tr('yesterday');
+  return s;
+}
+
+/* применяем язык к статичной части страницы */
+function applyLang() {
+  const dict = I18N[lang] || I18N.ru;
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    if (dict[key] !== undefined) el.innerHTML = dict[key];
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    const key = el.dataset.i18nTitle;
+    if (dict[key] !== undefined) el.title = dict[key];
+  });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+    const key = el.dataset.i18nPh;
+    if (dict[key] !== undefined) el.placeholder = dict[key];
+  });
+  const btn = $('lang-btn');
+  if (btn) btn.textContent = lang === 'ru' ? 'EN' : 'RU';
+  // заголовок вкладки браузера: «<имя бота> — Панель модерации»
+  const m = document.title.match(/^(.*?)\s+—/);
+  if (m && dict.panel_tab) document.title = `${m[1]} — ${dict.panel_tab}`;
+}
+
+/* кнопка EN/RU в шапке: переключает, запоминает и перерисовывает динамику */
+function toggleLang() {
+  lang = lang === 'ru' ? 'en' : 'ru';
+  try { localStorage.setItem('anidrip-lang', lang); } catch (_) {}
+  haptic('light');
+  applyLang();
+  // перерисовать динамику, если данные уже приехали
+  if (state && state.inbox) {
+    renderFeed();
+    updateCounts();
+    updateSubscribersUI();
+  }
+  if (typeof renderOwnDays === 'function' && typeof renderOwnGrid === 'function') {
+    renderOwnDays(); renderOwnGrid();
+  }
+  if (typeof renderEditDays === 'function' && typeof renderEditGrid === 'function') {
+    renderEditDays(); renderEditGrid();
+  }
+}
+
 /* ── API: каждый запрос подписан initData, сервер проверяет права админа ── */
 async function api(path, body = {}) {
   const res = await fetch('/api/' + path, {
@@ -1470,7 +1898,7 @@ async function api(path, body = {}) {
     body: JSON.stringify({ ...body, initData })
   });
   const data = await res.json().catch(() => ({ error: 'Сервер не ответил' }));
-  if (!res.ok || data.ok === false) throw new Error(data.error || 'Что-то пошло не так');
+  if (!res.ok || data.ok === false) throw new Error(serverMessage(data.error || tr('something_went_wrong')));
   return data;
 }
 
@@ -1595,22 +2023,22 @@ function mediaBlock(p, height = 210) {
   if (p.hasPhoto) {
     return `
       <div class="media-gallery" data-preview="${p.id}">
-        <img data-photo="${p.id}" class="media-cover" style="height:${height}px;" src="${photoCache[p.id] || BLANK_IMG}" alt="Фото">
-        ${p.albumCount > 1 ? `<div class="media-badge"><i class="ph-fill ph-images"></i> Альбом · ${p.albumCount}</div>` : ''}
+        <img data-photo="${p.id}" class="media-cover" style="height:${height}px;" src="${photoCache[p.id] || BLANK_IMG}" alt="">
+        ${p.albumCount > 1 ? `<div class="media-badge"><i class="ph-fill ph-images"></i> ${tr('album_word')} · ${p.albumCount}</div>` : ''}
       </div>`;
   }
   if (p.hasMediaThumb) {
     return `
       <div class="media-gallery" data-preview="${p.id}">
-        <img data-media-thumb="${p.id}" class="media-cover" style="height:${height}px;" src="${mediaThumbCache[p.id] || BLANK_IMG}" alt="${esc(p.media || 'медиа')}">
-        <div class="media-badge"><i class="ph-fill ph-play-circle"></i> ${p.albumCount > 1 ? `Альбом · ${p.albumCount}` : esc(p.media || 'медиа')}</div>
+        <img data-media-thumb="${p.id}" class="media-cover" style="height:${height}px;" src="${mediaThumbCache[p.id] || BLANK_IMG}" alt="">
+        <div class="media-badge"><i class="ph-fill ph-play-circle"></i> ${p.albumCount > 1 ? `${tr('album_word')} · ${p.albumCount}` : esc(mediaText(p.media) || tr('media_word'))}</div>
       </div>`;
   }
   if (p.hasMedia) {
     return `
       <div class="media-gallery" data-preview="${p.id}">
-        <div style="height:${height}px; display:grid; place-items:center; color:var(--mist); font-size:13px;">${esc(p.media || 'медиа')}</div>
-        ${p.albumCount > 1 ? `<div class="media-badge"><i class="ph-fill ph-images"></i> Альбом · ${p.albumCount}</div>` : ''}
+        <div style="height:${height}px; display:grid; place-items:center; color:var(--mist); font-size:13px;">${esc(mediaText(p.media) || tr('media_word'))}</div>
+        ${p.albumCount > 1 ? `<div class="media-badge"><i class="ph-fill ph-images"></i> ${tr('album_word')} · ${p.albumCount}</div>` : ''}
       </div>`;
   }
   return '';
@@ -1622,7 +2050,7 @@ const latSel = {}; // postId -> { day, time }
 function latDaysHtml(id) {
   return (state.days || []).map(d => `
     <button class="day-btn ${d.index === (latSel[id]?.day ?? 0) ? 'active' : ''}" data-latday="${id}:${d.index}">
-      ${esc(d.name)}<small>${esc(d.date)}</small>
+      ${esc(dayName(d.name))}<small>${esc(d.date)}</small>
     </button>`).join('');
 }
 
@@ -1633,11 +2061,11 @@ function latGridHtml(id) {
     const past = slot.state === 'past';
     const taken = slot.state === 'taken';
     const chosen = latSel[id]?.time === slot.time;
-    const baseStatus = past ? 'Прошёл' : taken ? `Занят #${slot.postId}` : 'Свободно';
-    const status = chosen ? 'Выбран' : baseStatus;
+    const baseStatus = past ? tr('past_slot') : taken ? `${tr('taken_slot')} #${slot.postId}` : tr('free_slot');
+    const status = chosen ? tr('chosen_slot') : baseStatus;
     const cls = taken ? 'taken' : chosen ? 'selected' : past ? 'past' : 'free';
     const tag = taken
-      ? (slot.postOwn === false ? '<span class="slot-tag tag-predlozhka">предложка</span>' : '<span class="slot-tag tag-own">свой пост</span>')
+      ? (slot.postOwn === false ? `<span class="slot-tag tag-predlozhka">${tr('sugg_tag')}</span>` : `<span class="slot-tag tag-own">${tr('own_tag')}</span>`)
       : '';
     return `
       <div class="slot-cell ${cls}" data-latslot="${id}:${slot.time}" data-base="${baseStatus}">
@@ -1679,7 +2107,7 @@ function patchLatGrid(id) {
     const past = slot.state === 'past';
     const taken = slot.state === 'taken';
     const chosen = selTime === slot.time;
-    const baseStatus = past ? 'Прошёл' : taken ? `Занят #${slot.postId}` : 'Свободно';
+    const baseStatus = past ? tr('past_slot') : taken ? `${tr('taken_slot')} #${slot.postId}` : tr('free_slot');
     const cls = taken ? 'taken' : chosen ? 'selected' : past ? 'past' : 'free';
     // Обновляем data-атрибуты и классы без замены элемента
     el.dataset.latslot = `${id}:${slot.time}`;
@@ -1688,13 +2116,13 @@ function patchLatGrid(id) {
     const timeEl = el.querySelector('.slot-time');
     if (timeEl) timeEl.textContent = slot.time;
     const statusEl = el.querySelector('.slot-status');
-    if (statusEl) statusEl.textContent = chosen ? 'Выбран' : baseStatus;
+    if (statusEl) statusEl.textContent = chosen ? tr('chosen_slot') : baseStatus;
     // Тег предложка/свой пост
     let tagEl = el.querySelector('.slot-tag');
     if (taken) {
       const tagHtml = slot.postOwn === false
-        ? '<span class="slot-tag tag-predlozhka">предложка</span>'
-        : '<span class="slot-tag tag-own">свой пост</span>';
+        ? `<span class="slot-tag tag-predlozhka">${tr('sugg_tag')}</span>`
+        : `<span class="slot-tag tag-own">${tr('own_tag')}</span>`;
       if (!tagEl) el.insertAdjacentHTML('beforeend', tagHtml);
       else tagEl.outerHTML = tagHtml;
     } else if (tagEl) {
@@ -1715,7 +2143,7 @@ function applyLatSlotPick(id) {
     const chosen = selTime === time;
     el.classList.toggle('selected', chosen);
     const st = el.querySelector('.slot-status');
-    if (st) st.textContent = chosen ? 'Выбран' : (el.dataset.base || 'Свободно');
+    if (st) st.textContent = chosen ? tr('chosen_slot') : (el.dataset.base || tr('free_slot'));
   });
 }
 
@@ -1759,28 +2187,28 @@ function pendingCard(p) {
       ${mediaBlock(p)}
       ${p.preview ? `<p class="post-text" data-preview="${p.id}">${esc(p.preview)}</p>` : ''}
       <div class="card-actions pending-actions">
-        <button class="btn btn-publish pending-main-action" data-toggle-step="publish-step-${p.id}"><i class="ph-bold ph-paper-plane-tilt"></i><span>Опубликовать</span></button>
+        <button class="btn btn-publish pending-main-action" data-toggle-step="publish-step-${p.id}"><i class="ph-bold ph-paper-plane-tilt"></i><span>${tr('publish_btn')}</span></button>
         <div class="pending-subrow">
-          <button class="btn btn-schedule pending-main-action" data-toggle-step="schedule-step-${p.id}"><i class="ph-bold ph-clock"></i><span>В отложку</span></button>
-          <button class="btn btn-ghost pending-icon-action" data-reject="${p.id}" title="Отклонить" aria-label="Отклонить"><i class="ph ph-trash"></i></button>
-          <button class="btn btn-ghost pending-icon-action" data-ban-post="${p.id}" title="Заблокировать автора" aria-label="Заблокировать автора"><i class="ph ph-prohibit"></i></button>
+          <button class="btn btn-schedule pending-main-action" data-toggle-step="schedule-step-${p.id}"><i class="ph-bold ph-clock"></i><span>${tr('to_queue_btn')}</span></button>
+          <button class="btn btn-ghost pending-icon-action" data-reject="${p.id}" title="${tr('reject_t')}" aria-label="${tr('reject_t')}"><i class="ph ph-trash"></i></button>
+          <button class="btn btn-ghost pending-icon-action" data-ban-post="${p.id}" title="${tr('ban_author_t')}" aria-label="${tr('ban_author_t')}"><i class="ph ph-prohibit"></i></button>
         </div>
       </div>
       <div class="accordion-step" id="publish-step-${p.id}">
-        <div class="step-title">Режим публикации:</div>
+        <div class="step-title">${tr('publish_mode')}</div>
         <div style="display:flex; gap:8px;">
-          <button class="btn btn-publish" data-publish="${p.id}" data-signed="0"><i class="ph-bold ph-mask-happy"></i> Анонимно</button>
-          <button class="btn btn-schedule" data-publish="${p.id}" data-signed="1"><i class="ph-bold ph-user-check"></i> С подписью</button>
+          <button class="btn btn-publish" data-publish="${p.id}" data-signed="0"><i class="ph-bold ph-mask-happy"></i> ${tr('anon')}</button>
+          <button class="btn btn-schedule" data-publish="${p.id}" data-signed="1"><i class="ph-bold ph-user-check"></i> ${tr('signed')}</button>
         </div>
       </div>
       <div class="accordion-step" id="schedule-step-${p.id}">
-        <div class="step-title">Когда опубликовать?</div>
+        <div class="step-title">${tr('when_publish')}</div>
         <div class="day-selector" data-latdays="${p.id}"></div>
         <div class="slots-grid" data-latgrid="${p.id}"></div>
-        <input class="form-input" id="lat-time-${p.id}" placeholder="или своё: 25.08 20:00" style="margin-bottom:8px;">
+        <input class="form-input" id="lat-time-${p.id}" placeholder="${tr('custom_short_ph')}" style="margin-bottom:8px;">
         <div style="display:flex; gap:8px;">
-          <button class="btn btn-schedule" data-when="${p.id}" data-signed="0"><i class="ph-bold ph-clock"></i> Анонимно</button>
-          <button class="btn btn-publish" data-when="${p.id}" data-signed="1"><i class="ph-bold ph-clock"></i> С подписью</button>
+          <button class="btn btn-schedule" data-when="${p.id}" data-signed="0"><i class="ph-bold ph-clock"></i> ${tr('anon')}</button>
+          <button class="btn btn-publish" data-when="${p.id}" data-signed="1"><i class="ph-bold ph-clock"></i> ${tr('signed')}</button>
         </div>
       </div>
     </div>`;
@@ -1796,19 +2224,19 @@ function scheduledCard(p) {
           <div class="author-avatar admin-ava"><i class="ph-bold ph-clock"></i></div>
           <div class="author-info">
             <div class="author-name" style="color:var(--citrus); flex-wrap:wrap; overflow:visible; gap:4px 6px;">
-              <span style="white-space:nowrap">${esc(p.time)} · ${esc(p.day)}</span>
-              <span class="source-tag ${isOwn ? 'tag-own' : 'tag-predlozhka'}">${isOwn ? 'Свой пост' : 'Предложка'}</span>
+              <span style="white-space:nowrap">${esc(whenText(p.time))} · ${esc(dayName(p.day))}</span>
+              <span class="source-tag ${isOwn ? 'tag-own' : 'tag-predlozhka'}">${isOwn ? tr('self_post') : tr('offered')}</span>
             </div>
-            <div class="author-meta">#${p.id} · ${isOwn ? 'свой пост' : 'от ' + esc(p.author)}${p.scheduledBy ? ' · отложил: ' + esc(p.scheduledBy) : ''} · ${p.signed ? 'с подписью' : 'анонимно'}</div>
+            <div class="author-meta">#${p.id} · ${isOwn ? tr('own_tag') : tr('from') + ' ' + esc(p.author)}${p.scheduledBy ? ' · ' + tr('scheduled_by') + ' ' + esc(p.scheduledBy) : ''} · ${p.signed ? tr('signed_low') : tr('anon_low')}</div>
           </div>
           <span class="post-id-tag">#${p.id}</span>
         </div>
         ${mediaBlock(p)}
-        <p class="post-text" data-preview="${p.id}">${p.preview ? esc(p.preview) : esc(p.media || 'без текста')}</p>
+        <p class="post-text" data-preview="${p.id}">${p.preview ? esc(p.preview) : esc(mediaText(p.media) || tr('no_text'))}</p>
         <div class="card-actions sched-actions">
-          <button class="btn btn-publish" data-publish="${p.id}" data-signed="${p.signed ? 1 : 0}"><i class="ph-bold ph-paper-plane-tilt"></i> Сейчас</button>
-          <button class="btn btn-schedule" data-open-edit="${p.id}"><i class="ph-bold ph-pencil-simple"></i> Изменить</button>
-          <button class="btn btn-ghost" data-cancel="${p.id}" title="Снять"><i class="ph-bold ph-x"></i></button>
+          <button class="btn btn-publish" data-publish="${p.id}" data-signed="${p.signed ? 1 : 0}"><i class="ph-bold ph-paper-plane-tilt"></i> ${tr('now')}</button>
+          <button class="btn btn-schedule" data-open-edit="${p.id}"><i class="ph-bold ph-pencil-simple"></i> ${tr('edit_btn')}</button>
+          <button class="btn btn-ghost" data-cancel="${p.id}" title="${tr('unpublish_t')}"><i class="ph-bold ph-x"></i></button>
         </div>
       </div>
     </div>`;
@@ -1823,12 +2251,12 @@ function publishedCard(p) {
         <div style="display:flex;align-items:center;gap:9px;margin-bottom:8px">
           <div class="ava-img" data-avatar="${p.userId}" style="background-color:${p.avatarColor || '#2A2838'}">${esc(initials)}</div>
           <div>
-            <div class="done-time">${esc(p.day)} ${esc(p.time)}</div>
-            <div class="done-mode">${p.signed ? 'с подписью ' + esc(p.author) : 'анонимно'}</div>
+            <div class="done-time">${esc(dayName(p.day))} ${esc(p.time)}</div>
+            <div class="done-mode">${p.signed ? tr('signed_low') + ' ' + esc(p.author) : tr('anon_low')}</div>
           </div>
         </div>
         ${mediaBlock(p, 60)}
-        <p class="done-text" data-preview="${p.id}">#${p.id} — ${esc(p.preview || p.media || 'без текста')}</p>
+        <p class="done-text" data-preview="${p.id}">#${p.id} — ${esc(p.preview || mediaText(p.media) || tr('no_text'))}</p>
       </div>
     </div>`;
 }
@@ -1840,21 +2268,21 @@ function personCard(p) {
       <div class="card-header">
         <div class="person-banned-ava" data-avatar="${p.userId}" style="background-color:${p.avatarColor || '#2A2838'}">${esc(initials)}</div>
         <div class="author-info">
-          <div class="author-name" style="display:flex; align-items:center; gap:8px;">${esc(p.handle)} ${p.banned ? '<span class="person-ban-badge">бан</span>' : ''}</div>
-          <div class="author-meta">ID ${p.userId} · писал ${esc(p.lastSeen)}</div>
+          <div class="author-name" style="display:flex; align-items:center; gap:8px;">${esc(p.handle)} ${p.banned ? `<span class="person-ban-badge">${tr('ban_badge')}</span>` : ''}</div>
+          <div class="author-meta">ID ${p.userId} · ${tr('wrote')} ${esc(agoText(p.lastSeen))}</div>
         </div>
       </div>
       <div class="person-stats">
-        <div class="person-stat person-stat-sent"><b>${p.total}</b><span>прислал</span></div>
-        <div class="person-stat person-stat-pub"><b>${p.published}</b><span>в канале</span></div>
-        <div class="person-stat person-stat-wait"><b>${p.pending}</b><span>ждёт</span></div>
+        <div class="person-stat person-stat-sent"><b>${p.total}</b><span>${tr('stat_sent')}</span></div>
+        <div class="person-stat person-stat-pub"><b>${p.published}</b><span>${tr('stat_pub')}</span></div>
+        <div class="person-stat person-stat-wait"><b>${p.pending}</b><span>${tr('stat_wait')}</span></div>
       </div>
       ${p.banned && p.banReason ? `
-      <div class="person-ban-reason"><i class="ph-bold ph-warning"></i><span><b>Причина:</b> ${esc(p.banReason)}</span></div>` : ''}
+      <div class="person-ban-reason"><i class="ph-bold ph-warning"></i><span><b>${tr('reason')}</b> ${esc(p.banReason)}</span></div>` : ''}
       <div class="card-actions">
         ${p.banned
-          ? `<button class="btn btn-schedule" style="color:var(--mint);" data-unban="${p.userId}"><i class="ph-bold ph-arrow-counter-clockwise"></i> Разблокировать</button>`
-          : `<button class="btn btn-schedule" style="color:var(--rose);" data-ban-person="${p.userId}"><i class="ph-bold ph-prohibit"></i> Заблокировать</button>`}
+          ? `<button class="btn btn-schedule" style="color:var(--mint);" data-unban="${p.userId}"><i class="ph-bold ph-arrow-counter-clockwise"></i> ${tr('unban_long')}</button>`
+          : `<button class="btn btn-schedule" style="color:var(--rose);" data-ban-person="${p.userId}"><i class="ph-bold ph-prohibit"></i> ${tr('ban_long')}</button>`}
       </div>
     </div>`;
 }
@@ -1876,8 +2304,8 @@ function renderFeed() {
 
     if (!list.length) {
       container.innerHTML = emptyBlock(
-        'Постов не найдено',
-        searchQuery || filterOnlyAlbums ? 'Измените параметры поиска.' : 'Всё обработано — новых предложек нет.',
+        tr('not_found_t'),
+        searchQuery || filterOnlyAlbums ? tr('change_search_s') : tr('all_done_s'),
         'ph-check-circle', 'var(--mint)'
       );
       return;
@@ -1892,7 +2320,7 @@ function renderFeed() {
 
   } else if (activeTab === 'scheduled') {
     if (!state.queue.length) {
-      container.innerHTML = emptyBlock('Отложка пуста', 'Запланируйте посты из предложки или создайте новый.', 'ph-calendar-blank', 'var(--citrus)');
+      container.innerHTML = emptyBlock(tr('queue_empty_t'), tr('queue_empty_s'), 'ph-calendar-blank', 'var(--citrus)');
       return;
     }
     const timeline = document.createElement('div');
@@ -1903,7 +2331,7 @@ function renderFeed() {
 
   } else if (activeTab === 'published') {
     if (!state.log.length) {
-      container.innerHTML = emptyBlock('Пока ничего не опубликовано', 'Опубликованные посты появятся здесь.', 'ph-broadcast', 'var(--mint)');
+      container.innerHTML = emptyBlock(tr('pub_empty_t'), tr('pub_empty_s'), 'ph-broadcast', 'var(--mint)');
       return;
     }
     state.log.forEach(p => {
@@ -1916,8 +2344,8 @@ function renderFeed() {
   } else if (activeTab === 'people') {
     if (!state.people.length) {
       container.innerHTML = emptyBlock(
-        'Никого не нашлось',
-        peopleOnlyBanned ? 'Заблокированных нет.' : (searchQuery ? 'Попробуйте другое имя или ID.' : 'Пока никто не писал боту.'),
+        tr('people_none_t'),
+        peopleOnlyBanned ? tr('no_banned_s') : (searchQuery ? tr('try_other_s') : tr('nobody_yet_s')),
         'ph-users'
       );
       return;
@@ -1952,7 +2380,7 @@ function updateCounts() {
 function updateSubscribersUI() {
   const data = state.subscribers;
   $('count-subs').innerText = data ? formatCount(data.current) : '—';
-  $('subs-current').innerText = data ? (data.current || 0).toLocaleString('ru-RU') : '—';
+  $('subs-current').innerText = data ? (data.current || 0).toLocaleString(lang === 'en' ? 'en-US' : 'ru-RU') : '—';
   $('subs-month').innerText = data ? ((data.change >= 0 ? '+' : '') + data.change) : '—';
   $('subs-today').innerText = data ? ((data.changeToday >= 0 ? '+' : '') + data.changeToday) : '—';
 }
@@ -1978,7 +2406,7 @@ async function refresh() {
     loadMissingMediaThumbs();
   } catch (err) {
     document.body.classList.add('locked');
-    $('access-notice-text').textContent = err.message || 'Панель доступна только администраторам.';
+    $('access-notice-text').textContent = serverMessage(err.message) || tr('access_denied');
     $('access-notice').hidden = false;
     $('feed-container').innerHTML = '';
   }
@@ -2097,12 +2525,12 @@ async function act(path, body, okText, after) {
   try {
     const res = await api(path, body);
     haptic('success');
-    showToast(res.message || okText);
+    showToast(serverMessage(res.message || okText));
     if (after) await after();
     else await refresh();
   } catch (err) {
     haptic('error');
-    showToast(err.message, true);
+    showToast(serverMessage(err.message), true);
   } finally {
     busy = false;
   }
@@ -2114,7 +2542,7 @@ function confirmPopup(title, message, onYes) {
       title,
       message,
       buttons: [
-        { id: 'yes', type: 'destructive', text: 'Да' },
+        { id: 'yes', type: 'destructive', text: tr('yes') },
         { type: 'cancel' }
       ]
     }, btnId => { if (btnId === 'yes') onYes(); });
@@ -2126,20 +2554,20 @@ function confirmPopup(title, message, onYes) {
 function banFromPost(postId) {
   const post = state.inbox.find(p => p.id === postId);
   const message = post
-    ? `Забанить ${post.author} (ID: ${post.userId}) и убрать его посты?`
-    : 'Забанить автора поста?';
-  confirmPopup('Бан пользователя', message, () => {
-    act('ban', { postId }, 'Заблокирован');
+    ? tr('ban_from_post_q', post.author, post.userId)
+    : tr('ban_author_q');
+  confirmPopup(tr('ban_user_title'), message, () => {
+    act('ban', { postId }, tr('banned_word'));
   });
 }
 
 function banPerson(userId) {
   const person = state.people.find(p => p.userId === userId);
   const message = person
-    ? `Заблокировать ${person.handle} (ID: ${userId})?`
-    : 'Заблокировать пользователя?';
-  confirmPopup('Бан пользователя', message, () => {
-    act('ban', { userId, reason: 'Заблокирован через панель' }, 'Заблокирован', async () => {
+    ? tr('ban_person_q', person.handle, userId)
+    : tr('ban_person_q2');
+  confirmPopup(tr('ban_user_title'), message, () => {
+    act('ban', { userId, reason: tr('ban_via_panel') }, tr('banned_word'), async () => {
       await loadPeople();
     });
   });
@@ -2165,7 +2593,7 @@ function closeRejectModal() {
 function confirmReject() {
   const postId = rejectingPostId;
   closeRejectModal();
-  act('reject', { postId }, 'Отклонено');
+  act('reject', { postId }, tr('rejected_word'));
 }
 
 /* ── свой пост: модалка ── */
@@ -2213,7 +2641,7 @@ function renderOwnDays() {
   if (wrap.children.length === 0) {
     wrap.innerHTML = ownDays.map(d => `
       <button class="day-btn ${d.index === ownDay ? 'active' : ''}" data-ownday="${d.index}">
-        ${esc(d.name)}<small>${esc(d.date)}</small>
+        ${esc(dayName(d.name))}<small>${esc(d.date)}</small>
       </button>`).join('');
   } else {
     wrap.querySelectorAll('.day-btn[data-ownday]').forEach(btn => {
@@ -2232,11 +2660,11 @@ function renderOwnGrid() {
     const past = slot.state === 'past';
     const taken = slot.state === 'taken';
     const chosen = ownSlot === slot.time;
-    const baseStatus = past ? 'Уже прошло' : taken ? `Занят #${slot.postId}` : 'Свободно';
-    const status = chosen ? 'Выбрано' : baseStatus;
+    const baseStatus = past ? tr('past_slot') : taken ? `${tr('taken_slot')} #${slot.postId}` : tr('free_slot');
+    const status = chosen ? tr('chosen_slot') : baseStatus;
     const cls = taken ? 'taken' : chosen ? 'selected' : past ? 'past' : 'free';
     const tag = taken
-      ? (slot.postOwn === false ? '<span class="slot-tag tag-predlozhka">предложка</span>' : '<span class="slot-tag tag-own">свой пост</span>')
+      ? (slot.postOwn === false ? `<span class="slot-tag tag-predlozhka">${tr('sugg_tag')}</span>` : `<span class="slot-tag tag-own">${tr('own_tag')}</span>`)
       : '';
     return `
       <div class="slot-cell ${cls}" data-ownslot="${slot.time}" data-base="${baseStatus}">
@@ -2257,7 +2685,7 @@ function renderOwnGrid() {
     const past = slot.state === 'past';
     const taken = slot.state === 'taken';
     const chosen = ownSlot === slot.time;
-    const baseStatus = past ? 'Уже прошло' : taken ? `Занят #${slot.postId}` : 'Свободно';
+    const baseStatus = past ? tr('past_slot') : taken ? `${tr('taken_slot')} #${slot.postId}` : tr('free_slot');
     const cls = taken ? 'taken' : chosen ? 'selected' : past ? 'past' : 'free';
     el.dataset.ownslot = slot.time;
     el.dataset.base = baseStatus;
@@ -2265,12 +2693,12 @@ function renderOwnGrid() {
     const timeEl = el.querySelector('.slot-time');
     if (timeEl) timeEl.textContent = slot.time;
     const statusEl = el.querySelector('.slot-status');
-    if (statusEl) statusEl.textContent = chosen ? 'Выбрано' : baseStatus;
+    if (statusEl) statusEl.textContent = chosen ? tr('chosen_slot') : baseStatus;
     let tagEl = el.querySelector('.slot-tag');
     if (taken) {
       const tagHtml = slot.postOwn === false
-        ? '<span class="slot-tag tag-predlozhka">предложка</span>'
-        : '<span class="slot-tag tag-own">свой пост</span>';
+        ? `<span class="slot-tag tag-predlozhka">${tr('sugg_tag')}</span>`
+        : `<span class="slot-tag tag-own">${tr('own_tag')}</span>`;
       if (!tagEl) el.insertAdjacentHTML('beforeend', tagHtml);
       else tagEl.outerHTML = tagHtml;
     } else if (tagEl) {
@@ -2288,7 +2716,7 @@ function applyOwnSlotPick() {
     const chosen = ownSlot === el.dataset.ownslot;
     el.classList.toggle('selected', chosen);
     const st = el.querySelector('.slot-status');
-    if (st) st.textContent = chosen ? 'Выбрано' : (el.dataset.base || 'Свободно');
+    if (st) st.textContent = chosen ? tr('chosen_slot') : (el.dataset.base || tr('free_slot'));
   });
 }
 
@@ -2308,7 +2736,7 @@ function renderOwnMediaPreviews() {
     html += `
       <div data-add-own-file style="width:68px; height:68px; border-radius:12px; border:2px dashed var(--haze); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; color:var(--mist); cursor:pointer; flex-shrink:0;">
         <i class="ph ph-image-plus" style="font-size:20px;"></i>
-        <span style="font-size:9px; font-weight:700;">+ Медиа</span>
+        <span style="font-size:9px; font-weight:700;">${tr('add_media')}</span>
       </div>`;
   }
   container.innerHTML = html;
@@ -2326,17 +2754,17 @@ function updateCharCount(el) {
 async function submitOwnPost() {
   const text = $('own-post-text').value.trim();
   if (!text && ownFiles.length === 0) {
-    showToast('Напишите текст или прикрепите фото/видео', true);
+    showToast(tr('need_text_or_media'), true);
     return;
   }
   const limit = ownFiles.length > 0 ? 1024 : 4096;
   if (text.length > limit) {
-    showToast(`Слишком длинный текст: максимум ${limit} символов`, true);
+    showToast(tr('too_long', limit), true);
     return;
   }
   const customWhen = $('own-when-custom').value.trim();
   if (!ownSlot && !customWhen) {
-    showToast('Выберите слот для публикации', true);
+    showToast(tr('need_slot'), true);
     return;
   }
   if (busy) return;
@@ -2354,7 +2782,7 @@ async function submitOwnPost() {
     }
     const res = await api('own', payload);
     haptic('success');
-    showToast(res.message || 'Отложено');
+    showToast(res.message || tr('postponed'));
     closeCreateModal();
     await refresh();
   } catch (err) {
@@ -2381,7 +2809,7 @@ function openEditModal(postId) {
   haptic('medium');
   const post = state.queue.find(p => p.id === postId);
   if (!post) {
-    showToast('Редактировать можно только отложенные посты', true);
+    showToast(tr('only_scheduled_editable'), true);
     return;
   }
   editingPostId = postId;
@@ -2419,7 +2847,7 @@ function renderEditDays() {
   if (wrap.children.length === 0) {
     wrap.innerHTML = (state.days || []).map(d => `
       <button class="day-btn ${d.index === editDay ? 'active' : ''}" data-editday="${d.index}">
-        ${esc(d.name)}<small>${esc(d.date)}</small>
+        ${esc(dayName(d.name))}<small>${esc(d.date)}</small>
       </button>`).join('');
   } else {
     wrap.querySelectorAll('.day-btn[data-editday]').forEach(btn => {
@@ -2439,8 +2867,8 @@ function renderEditGrid() {
     const past = slot.state === 'past' && !isThisPost;
     const taken = slot.state === 'taken' && !isThisPost;
     const chosen = editSlot === slot.time;
-    const baseStatus = taken ? `Занят #${slot.postId}` : isThisPost ? 'Сейчас' : past ? 'Прошёл' : 'Свободен';
-    const status = chosen ? 'Выбрано' : baseStatus;
+    const baseStatus = taken ? `${tr('taken_slot')} #${slot.postId}` : isThisPost ? tr('edit_now_slot') : past ? tr('edit_past_slot') : tr('slot_free');
+    const status = chosen ? tr('chosen_slot') : baseStatus;
     const cls = taken ? 'taken' : chosen ? 'selected' : past ? 'past' : 'free';
     return `
       <div class="slot-cell ${cls}" data-editslot="${slot.time}" data-base="${baseStatus}">
@@ -2461,7 +2889,7 @@ function renderEditGrid() {
     const past = slot.state === 'past' && !isThisPost;
     const taken = slot.state === 'taken' && !isThisPost;
     const chosen = editSlot === slot.time;
-    const baseStatus = taken ? `Занят #${slot.postId}` : isThisPost ? 'Сейчас' : past ? 'Прошёл' : 'Свободен';
+    const baseStatus = taken ? `${tr('taken_slot')} #${slot.postId}` : isThisPost ? tr('edit_now_slot') : past ? tr('edit_past_slot') : tr('slot_free');
     const cls = taken ? 'taken' : chosen ? 'selected' : past ? 'past' : 'free';
     el.dataset.editslot = slot.time;
     el.dataset.base = baseStatus;
@@ -2469,7 +2897,7 @@ function renderEditGrid() {
     const timeEl = el.querySelector('.slot-time');
     if (timeEl) timeEl.textContent = slot.time;
     const statusEl = el.querySelector('.slot-status');
-    if (statusEl) statusEl.textContent = chosen ? 'Выбрано' : baseStatus;
+    if (statusEl) statusEl.textContent = chosen ? tr('chosen_slot') : baseStatus;
   });
 }
 
@@ -2482,7 +2910,7 @@ function applyEditSlotPick() {
     const chosen = editSlot === el.dataset.editslot;
     el.classList.toggle('selected', chosen);
     const st = el.querySelector('.slot-status');
-    if (st) st.textContent = chosen ? 'Выбрано' : (el.dataset.base || 'Свободен');
+    if (st) st.textContent = chosen ? tr('chosen_slot') : (el.dataset.base || tr('slot_free'));
   });
 }
 
@@ -2516,7 +2944,7 @@ async function renderEditMediaPreviews(post) {
     html += `
       <div data-add-edit-file style="width:68px; height:68px; border-radius:12px; border:2px dashed var(--haze); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; color:var(--mist); cursor:pointer; flex-shrink:0;">
         <i class="ph ph-image-plus" style="font-size:20px;"></i>
-        <span style="font-size:9px; font-weight:700;">+ Фото</span>
+        <span style="font-size:9px; font-weight:700;">${tr('add_photo')}</span>
       </div>`;
   }
   container.innerHTML = html;
@@ -2546,12 +2974,12 @@ function saveEditedPost() {
   const total = editTotalFor(post);
   const remaining = total - editRemoved.size + editNewFiles.length;
   if (!text && remaining === 0) {
-    showToast('Нужен текст или хотя бы один файл', true);
+    showToast(tr('need_text_or_file'), true);
     return;
   }
   const limit = remaining > 0 ? 1024 : 4096;
   if (text.length > limit) {
-    showToast(`Слишком длинный текст: максимум ${limit} символов`, true);
+    showToast(tr('too_long', limit), true);
     return;
   }
 
@@ -2574,7 +3002,7 @@ function saveEditedPost() {
   };
   if (when) payload.when = when;
 
-  act('edit-post', payload, 'Изменения сохранены', async () => {
+  act('edit-post', payload, tr('saved_changes'), async () => {
     closeEditModal();
     await refresh();
   });
@@ -2606,14 +3034,14 @@ function initSubscribersChart() {
   const ctx = $('analyticsChart').getContext('2d');
   const labels = history.map(h => {
     const d = new Date(h.at);
-    return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+    return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'ru-RU', { day: 'numeric', month: 'short' });
   });
   chartInstance = new Chart(ctx, {
     type: 'line',
     data: {
       labels,
       datasets: [{
-        label: 'Подписчики',
+        label: tr('stat_subs'),
         data: history.map(h => h.count),
         borderColor: '#FF5C9E',
         backgroundColor: 'rgba(255, 92, 158, 0.12)',
@@ -2750,14 +3178,14 @@ async function renderViewerSlide() {
         if (token !== viewerLoadToken) return;
         img.classList.remove('viewer-loading');
         if (loaderEl) loaderEl.style.display = 'none';
-        showToast('Не удалось загрузить медиа', true);
+        showToast(tr('media_load_fail'), true);
       });
     }
   } catch (err) {
     if (token !== viewerLoadToken) return;
     img.classList.remove('viewer-loading');
     if (loaderEl) loaderEl.style.display = 'none';
-    showToast('Не удалось загрузить медиа', true);
+    showToast(tr('media_load_fail'), true);
   }
 
   // — миниатюры подгружаем фоном —
@@ -2835,7 +3263,7 @@ document.addEventListener('click', (e) => {
     const id = t.dataset.latslot.slice(0, t.dataset.latslot.indexOf(':'));
     const time = t.dataset.latslot.slice(t.dataset.latslot.indexOf(':') + 1);
     if (t.classList.contains('taken') || t.classList.contains('past')) {
-      showToast('Слот занят или уже прошёл', true);
+      showToast(tr('slot_busy_or_past'), true);
       return;
     }
     const cur = latSel[id] || {};
@@ -2845,7 +3273,7 @@ document.addEventListener('click', (e) => {
   }
 
   if (t.dataset.publish) {
-    act('publish', { postId: +t.dataset.publish, signed: t.dataset.signed === '1' }, 'Опубликовано');
+    act('publish', { postId: +t.dataset.publish, signed: t.dataset.signed === '1' }, tr('published_word'));
     return;
   }
 
@@ -2860,8 +3288,8 @@ document.addEventListener('click', (e) => {
     } else {
       when = $(`lat-time-${id}`).value.trim();
     }
-    if (!when) { showToast('Выберите время в сетке или впишите своё', true); return; }
-    act('schedule', { postId: id, when, signed: t.dataset.signed === '1' }, 'Запланировано');
+    if (!when) { showToast(tr('need_time'), true); return; }
+    act('schedule', { postId: id, when, signed: t.dataset.signed === '1' }, tr('scheduled_word'));
     return;
   }
 
@@ -2881,12 +3309,12 @@ document.addEventListener('click', (e) => {
   }
 
   if (t.dataset.unban) {
-    act('unban', { userId: +t.dataset.unban }, 'Блокировка снята', async () => { await loadPeople(); });
+    act('unban', { userId: +t.dataset.unban }, tr('unbanned'), async () => { await loadPeople(); });
     return;
   }
 
   if (t.dataset.cancel) {
-    act('cancel', { postId: +t.dataset.cancel }, 'Снято с публикации');
+    act('cancel', { postId: +t.dataset.cancel }, tr('unpublished'));
     return;
   }
 
@@ -2910,7 +3338,7 @@ document.addEventListener('click', (e) => {
 
   if (t.dataset.ownslot) {
     if (t.classList.contains('taken') || t.classList.contains('past')) {
-      showToast('Слот занят или уже прошёл', true);
+      showToast(tr('slot_busy_or_past'), true);
       return;
     }
     ownSlot = t.dataset.ownslot === ownSlot ? null : t.dataset.ownslot;
@@ -2941,7 +3369,7 @@ document.addEventListener('click', (e) => {
 
   if (t.dataset.editslot) {
     if (t.classList.contains('taken') || t.classList.contains('past')) {
-      showToast('Слот занят или уже прошёл', true);
+      showToast(tr('slot_busy_or_past'), true);
       return;
     }
     editSlot = t.dataset.editslot === editSlot ? null : t.dataset.editslot;
@@ -2984,19 +3412,19 @@ window.addEventListener('DOMContentLoaded', () => {
     e.target.value = '';
     for (const file of files) {
       if (ownFiles.length >= OWN_FILES_LIMIT) {
-        showToast(`Можно приложить не больше ${OWN_FILES_LIMIT} файлов`, true);
+        showToast(tr('files_limit', OWN_FILES_LIMIT), true);
         break;
       }
       const isVideo = file.type.startsWith('video/');
       const isPhoto = file.type.startsWith('image/');
       if (!isVideo && !isPhoto) {
-        showToast('Поддерживаются только фото и видео', true);
+        showToast(tr('only_photo_video'), true);
         continue;
       }
       try {
         ownFiles.push({ dataUrl: await readFileAsDataUrl(file), type: isVideo ? 'video' : 'photo' });
       } catch (_) {
-        showToast('Не удалось прочитать файл', true);
+        showToast(tr('file_read_error'), true);
       }
     }
     renderOwnMediaPreviews();
@@ -3011,19 +3439,19 @@ window.addEventListener('DOMContentLoaded', () => {
     if (!post) return;
     for (const file of files) {
       if (editTotalFor(post) - editRemoved.size + editNewFiles.length >= OWN_FILES_LIMIT) {
-        showToast(`Можно приложить не больше ${OWN_FILES_LIMIT} файлов`, true);
+        showToast(tr('files_limit', OWN_FILES_LIMIT), true);
         break;
       }
       const isVideo = file.type.startsWith('video/');
       const isPhoto = file.type.startsWith('image/');
       if (!isVideo && !isPhoto) {
-        showToast('Поддерживаются только фото и видео', true);
+        showToast(tr('only_photo_video'), true);
         continue;
       }
       try {
         editNewFiles.push({ dataUrl: await readFileAsDataUrl(file), type: isVideo ? 'video' : 'photo' });
       } catch (_) {
-        showToast('Не удалось прочитать файл', true);
+        showToast(tr('file_read_error'), true);
       }
     }
     renderEditMediaPreviews(post);
@@ -3056,6 +3484,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  applyLang();
   scheduleAutoRefresh();
   refresh();
 });
