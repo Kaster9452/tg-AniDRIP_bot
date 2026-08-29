@@ -1223,12 +1223,22 @@ body {
 .format-btn:hover { border-color: var(--rose); color: var(--bone); }
 
 /* Кнопка «Люди» в шапке — как menu-btn в index.html */
-.menu-btn{margin-left:auto;display:flex;align-items:center;gap:6px;cursor:pointer;
+.menu-btn{margin-left:auto;display:grid;place-items:center;cursor:pointer;
   background:var(--slate);border:1px solid var(--haze);color:var(--bone);
-  border-radius:12px;padding:9px 12px;font-family:'Manrope',sans-serif;
-  font-weight:600;font-size:12px;transition:border-color .18s ease,color .18s ease}
+  border-radius:12px;width:38px;height:38px;flex:none;
+  transition:border-color .18s ease,color .18s ease}
 .menu-btn:hover{border-color:var(--rose);color:var(--rose)}
 .menu-btn:focus-visible{outline:2px solid var(--rose);outline-offset:2px}
+
+/* ── Архив (вкладка «Опубликовано») — как в исходном index.html ── */
+.done{display:flex;gap:11px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--haze)}
+.done:last-child{border-bottom:0}
+.done-mark{width:7px;height:7px;border-radius:50%;background:var(--mint);margin-top:6px;flex:none}
+.done-time{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--mist)}
+.done-text{font-size:12.5px;color:#C9C4DA;line-height:1.45;margin-top:8px;word-break:break-word}
+.done-mode{font-size:10px;color:var(--mist);margin-top:4px}
+.ava-img{width:30px;height:30px;border-radius:9px;flex:none;display:grid;place-items:center;font-family:'Unbounded',sans-serif;font-weight:600;font-size:12px;background:#2A2838;color:var(--bone);background-size:cover;background-position:center;overflow:hidden}
+.ava-img.has-photo{color:transparent}
 </style>
 </head>
 <body>
@@ -1244,14 +1254,13 @@ body {
       <h1 class="brand-title">Панель <span>управления</span></h1>
     </div>
     <div class="header-actions">
-      <button class="menu-btn" onclick="switchTab('people')" title="Люди">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      <button class="menu-btn" onclick="switchTab('people')" title="Люди" aria-label="Люди">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
           <circle cx="9" cy="7" r="4"/>
           <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
         </svg>
-        <span>Люди</span>
       </button>
       <button class="icon-btn" onclick="toggleAnalytics()" title="Динамика подписчиков"><i class="ph ph-chart-line-up"></i></button>
       <button class="icon-btn" onclick="refreshState()" title="Обновить данные"><i class="ph ph-arrows-clockwise"></i></button>
@@ -1324,10 +1333,7 @@ body {
     <button class="nav-tab" id="tab-btn-published" onclick="switchTab('published')">
       <span>Архив</span>
     </button>
-    <button class="nav-tab" id="tab-btn-people" onclick="switchTab('people')">
-      <span>Люди</span>
-    </button>
-  </div>
+    </div>
 
   <!-- ================= FEED CONTAINER ================= -->
   <div class="feed-content" id="feed-container">
@@ -1565,7 +1571,7 @@ function readFileAsDataUrl(file) {
 
 function emptyBlock(title, subtitle, icon = 'ph-tray', color = 'var(--mist)') {
   return `
-    <div style="text-align:center; padding:60px 20px; color:var(--mist);" class="animate-rise">
+    <div style="text-align:center; padding:60px 20px; color:var(--mist);">
       <i class="ph ${icon}" style="font-size:48px; color:${color}; margin-bottom:12px; display:block;"></i>
       <h3 style="font-family:'Unbounded'; font-size:16px; color:var(--bone); margin-bottom:4px;">${esc(title)}</h3>
       <p style="font-size:12.5px;">${esc(subtitle || '')}</p>
@@ -1709,7 +1715,7 @@ function renderAllLatGrids() {
 function pendingCard(p) {
   const initials = (p.initials || '??').toUpperCase();
   return `
-    <div class="post-card animate-rise" id="post-card-${p.id}">
+    <div class="post-card" id="post-card-${p.id}">
       <div class="card-header">
         <div class="author-avatar" data-avatar="${p.userId}" style="background-color:${p.avatarColor || '#2A2838'}">${esc(initials)}</div>
         <div class="author-info">
@@ -1755,8 +1761,8 @@ function scheduledCard(p) {
         <div class="card-header">
           <div class="author-avatar admin-ava"><i class="ph-bold ph-clock"></i></div>
           <div class="author-info">
-            <div class="author-name" style="color:var(--citrus);">
-              ${esc(p.time)} · ${esc(p.day)}
+            <div class="author-name" style="color:var(--citrus); flex-wrap:wrap; overflow:visible; gap:4px 6px;">
+              <span style="white-space:nowrap">${esc(p.time)} · ${esc(p.day)}</span>
               <span class="source-tag ${isOwn ? 'tag-own' : 'tag-predlozhka'}">${isOwn ? 'Свой пост' : 'Предложка'}</span>
             </div>
             <div class="author-meta">#${p.id} · ${isOwn ? 'свой пост' : 'от ' + esc(p.author)}${p.scheduledBy ? ' · отложил: ' + esc(p.scheduledBy) : ''} · ${p.signed ? 'с подписью' : 'анонимно'}</div>
@@ -1777,23 +1783,26 @@ function scheduledCard(p) {
 function publishedCard(p) {
   const initials = (p.initials || '??').toUpperCase();
   return `
-    <div class="post-card animate-rise">
-      <div class="card-header">
-        <div class="author-avatar" data-avatar="${p.userId}" style="background-color:${p.avatarColor || '#2A2838'}">${esc(initials)}</div>
-        <div class="author-info">
-          <div class="author-name">Опубликовано #${p.id}</div>
-          <div class="author-meta">${esc(p.day)} ${esc(p.time)} · ${p.signed ? 'с подписью ' + esc(p.author) : 'анонимно'}</div>
+    <div class="done" data-preview="${p.id}">
+      <span class="done-mark"></span>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:8px">
+          <div class="ava-img" data-avatar="${p.userId}" style="background-color:${p.avatarColor || '#2A2838'}">${esc(initials)}</div>
+          <div>
+            <div class="done-time">${esc(p.day)} ${esc(p.time)}</div>
+            <div class="done-mode">${p.signed ? 'с подписью ' + esc(p.author) : 'анонимно'}</div>
+          </div>
         </div>
+        ${mediaBlock(p, 60)}
+        <p class="done-text" data-preview="${p.id}">#${p.id} — ${esc(p.preview || p.media || 'без текста')}</p>
       </div>
-      ${mediaBlock(p, 120)}
-      <p class="post-text" data-preview="${p.id}">#${p.id} — ${esc(p.preview || p.media || 'без текста')}</p>
     </div>`;
 }
 
 function personCard(p) {
   const initials = (p.initials || '??').toUpperCase();
   return `
-    <div class="post-card animate-rise" style="${p.banned ? 'border-color:rgba(255,92,158,0.3);' : ''}">
+    <div class="post-card" style="${p.banned ? 'border-color:rgba(255,92,158,0.3);' : ''}">
       <div class="card-header">
         <div class="author-avatar" data-avatar="${p.userId}" style="background-color:${p.avatarColor || '#2A2838'}; ${p.banned ? 'background:#361420; color:var(--rose);' : ''}">${esc(initials)}</div>
         <div class="author-info">
@@ -1864,7 +1873,7 @@ function renderFeed() {
       return;
     }
     const timeline = document.createElement('div');
-    timeline.className = 'timeline-track animate-rise';
+    timeline.className = 'timeline-track';
     timeline.innerHTML = state.queue.map(scheduledCard).join('');
     container.appendChild(timeline);
     applyAvatars();
