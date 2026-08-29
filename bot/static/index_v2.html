@@ -451,15 +451,12 @@ body {
 
 /* Card Buttons */
 .card-actions {
-  /* display задаётся конкретным модификатором (.pending-actions = grid,
-     остальные наследуют flex от .btn через обычный поток) */
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 10px;
 }
-/* .pending-actions переопределяет display:flex → grid, конфликта нет,
-   т.к. grid является более специфичным дочерним классом */
+/* .pending-actions и .sched-actions переопределяют раскладку под свои ряды */
 .btn {
   flex: 1 1 auto;
   min-width: 0;
@@ -502,34 +499,48 @@ body {
 }
 .btn-ghost:hover { border-color: var(--rose); color: var(--rose); }
 
-/* Кнопки карточки «Предложка»: две основные сверху, служебные компактно снизу.
-   Такая сетка не сжимает подписи и не выезжает за край узкого телефона. */
+/* Кнопки карточки «Предложка»: главное действие («Опубликовать») на всю
+   ширину сверху, служебный ряд («В отложку» + иконки) ровным ритмом снизу. */
 .pending-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pending-subrow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 38px 38px;
+  grid-template-columns: minmax(0, 1fr) 38px 38px;
   gap: 7px;
+}
+.pending-actions .btn {
+  height: 38px;
+  padding-block: 0;
 }
 .pending-actions .pending-main-action {
   min-width: 0;
   white-space: nowrap;
-  font-size: 12px;
-  padding-inline: 7px;
 }
 .pending-actions .pending-icon-action {
   width: 38px;
   min-width: 38px;
-  height: 38px;
   padding: 0;
 }
-@media (max-width: 400px) {
-  .pending-actions {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-  .pending-actions .pending-icon-action {
-    width: 100%;
-    min-width: 0;
-    color: var(--mist);
-  }
+
+/* Кнопки карточки «Отложка» — тот же ритм: два действия + квадратная иконка */
+.sched-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 38px;
+  gap: 7px;
+}
+.sched-actions .btn {
+  height: 38px;
+  padding-block: 0;
+  white-space: nowrap;
+}
+
+/* Кнопки внутри раскрытых шагов (Анонимно / С подписью) — та же высота */
+.accordion-step > div > .btn {
+  height: 38px;
+  padding-block: 0;
 }
 
 /* Accordion Step */
@@ -1749,9 +1760,11 @@ function pendingCard(p) {
       ${p.preview ? `<p class="post-text" data-preview="${p.id}">${esc(p.preview)}</p>` : ''}
       <div class="card-actions pending-actions">
         <button class="btn btn-publish pending-main-action" data-toggle-step="publish-step-${p.id}"><i class="ph-bold ph-paper-plane-tilt"></i><span>Опубликовать</span></button>
-        <button class="btn btn-schedule pending-main-action" data-toggle-step="schedule-step-${p.id}"><i class="ph-bold ph-clock"></i><span>В отложку</span></button>
-        <button class="btn btn-ghost pending-icon-action" data-reject="${p.id}" title="Отклонить" aria-label="Отклонить"><i class="ph ph-trash"></i></button>
-        <button class="btn btn-ghost pending-icon-action" data-ban-post="${p.id}" title="Заблокировать автора" aria-label="Заблокировать автора"><i class="ph ph-prohibit"></i></button>
+        <div class="pending-subrow">
+          <button class="btn btn-schedule pending-main-action" data-toggle-step="schedule-step-${p.id}"><i class="ph-bold ph-clock"></i><span>В отложку</span></button>
+          <button class="btn btn-ghost pending-icon-action" data-reject="${p.id}" title="Отклонить" aria-label="Отклонить"><i class="ph ph-trash"></i></button>
+          <button class="btn btn-ghost pending-icon-action" data-ban-post="${p.id}" title="Заблокировать автора" aria-label="Заблокировать автора"><i class="ph ph-prohibit"></i></button>
+        </div>
       </div>
       <div class="accordion-step" id="publish-step-${p.id}">
         <div class="step-title">Режим публикации:</div>
@@ -1792,7 +1805,7 @@ function scheduledCard(p) {
         </div>
         ${mediaBlock(p)}
         <p class="post-text" data-preview="${p.id}">${p.preview ? esc(p.preview) : esc(p.media || 'без текста')}</p>
-        <div class="card-actions">
+        <div class="card-actions sched-actions">
           <button class="btn btn-publish" data-publish="${p.id}" data-signed="${p.signed ? 1 : 0}"><i class="ph-bold ph-paper-plane-tilt"></i> Сейчас</button>
           <button class="btn btn-schedule" data-open-edit="${p.id}"><i class="ph-bold ph-pencil-simple"></i> Изменить</button>
           <button class="btn btn-ghost" data-cancel="${p.id}" title="Снять"><i class="ph-bold ph-x"></i></button>
