@@ -607,11 +607,13 @@ body {
 /* Card Buttons */
 .card-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 10px;
 }
 .btn {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
   border: 0;
   cursor: pointer;
   border-radius: 12px;
@@ -619,10 +621,12 @@ body {
   font-family: 'Manrope', sans-serif;
   font-weight: 700;
   font-size: 12.5px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
+  white-space: normal;
+  line-height: 1.2;
   transition: all 0.15s ease;
 }
 .btn:active { transform: scale(0.96); }
@@ -648,6 +652,36 @@ body {
   flex: none;
 }
 .btn-ghost:hover { border-color: var(--rose); color: var(--rose); }
+
+/* Кнопки карточки «Предложка»: две основные сверху, служебные компактно снизу.
+   Такая сетка не сжимает подписи и не выезжает за край узкого телефона. */
+.pending-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 38px 38px;
+  gap: 7px;
+}
+.pending-actions .pending-main-action {
+  min-width: 0;
+  white-space: nowrap;
+  font-size: 12px;
+  padding-inline: 7px;
+}
+.pending-actions .pending-icon-action {
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  padding: 0;
+}
+@media (max-width: 390px) {
+  .pending-actions {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .pending-actions .pending-icon-action {
+    width: 100%;
+    min-width: 0;
+    color: var(--mist);
+  }
+}
 
 /* Accordion Step */
 .accordion-step {
@@ -1012,6 +1046,7 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  position: relative;
   cursor: grab;
 }
 .viewer-img-container img {
@@ -1023,6 +1058,34 @@ body {
   transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
   user-select: none;
 }
+.viewer-img-container img.viewer-loading {
+  opacity: 0;
+}
+
+/* Плейсхолдер «фото загружается» в просмотрщике медиа */
+.viewer-loader {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--mist);
+  font-size: 12px;
+  font-family: 'Manrope', sans-serif;
+  background: rgba(10, 9, 16, 0.55);
+  border-radius: 12px;
+}
+.viewer-spinner {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: var(--rose);
+  animation: viewer-spin 0.8s linear infinite;
+}
+@keyframes viewer-spin { to { transform: rotate(360deg); } }
 
 .viewer-nav-btn {
   position: absolute;
@@ -1065,9 +1128,16 @@ body {
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  padding: 6px 4px;
-  justify-content: center;
+  padding-block: 6px 10px;
+  /* Реальное свободное место по краям позволяет довести до центра
+     и первую, и последнюю миниатюру альбома. */
+  padding-inline: max(4px, calc(50% - 29px));
   scrollbar-width: none;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 50%;
+  justify-content: flex-start;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
 }
 .viewer-thumbs::-webkit-scrollbar { display: none; }
 .viewer-thumb-item {
@@ -1079,6 +1149,7 @@ body {
   opacity: 0.5;
   cursor: pointer;
   flex-shrink: 0;
+  scroll-snap-align: center;
   transition: all 0.18s ease;
 }
 .viewer-thumb-item.active {
@@ -1488,6 +1559,10 @@ body {
     <button class="viewer-nav-btn prev" id="viewer-prev-btn" onclick="viewerPrev()" title="Предыдущее фото (←)"><i class="ph-bold ph-caret-left"></i></button>
     <div class="viewer-img-container" id="viewer-img-container">
       <img id="viewer-img" src="" alt="Fullscreen preview">
+      <div class="viewer-loader" id="viewer-loader" style="display:none;">
+        <div class="viewer-spinner"></div>
+        <span>Загружается…</span>
+      </div>
       <video id="viewer-video" controls playsinline style="display:none; max-width:100%; max-height:64vh; border-radius:12px; box-shadow:0 12px 48px rgba(0,0,0,0.7);"></video>
     </div>
     <button class="viewer-nav-btn next" id="viewer-next-btn" onclick="viewerNext()" title="Следующее фото (→)"><i class="ph-bold ph-caret-right"></i></button>
@@ -1613,6 +1688,17 @@ async function loadAlbumItem(postId, index) {
   const res = await api('media', { postId, index });
   albumCache[key] = res.dataUrl;
   return res.dataUrl;
+}
+
+/* Предзагрузка изображения: возвращает промис, который резолвится после
+   полной загрузки картинки (или отклоняется при ошибке). */
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const probe = new Image();
+    probe.onload = () => resolve();
+    probe.onerror = () => reject(new Error('load failed'));
+    probe.src = src;
+  });
 }
 
 function applyAvatars() {
@@ -1745,11 +1831,11 @@ function pendingCard(p) {
       </div>
       ${mediaBlock(p)}
       ${p.preview ? `<p class="post-text" data-preview="${p.id}">${esc(p.preview)}</p>` : ''}
-      <div class="card-actions">
-        <button class="btn btn-publish" data-toggle-step="publish-step-${p.id}"><i class="ph-bold ph-paper-plane-tilt"></i> Опубликовать</button>
-        <button class="btn btn-schedule" data-toggle-step="schedule-step-${p.id}"><i class="ph-bold ph-clock"></i> В отложку</button>
-        <button class="btn btn-ghost" data-reject="${p.id}" title="Отклонить"><i class="ph ph-trash"></i></button>
-        <button class="btn btn-ghost" data-ban-post="${p.id}" title="Бан"><i class="ph ph-prohibit"></i></button>
+      <div class="card-actions pending-actions">
+        <button class="btn btn-publish pending-main-action" data-toggle-step="publish-step-${p.id}"><i class="ph-bold ph-paper-plane-tilt"></i><span>Опубликовать</span></button>
+        <button class="btn btn-schedule pending-main-action" data-toggle-step="schedule-step-${p.id}"><i class="ph-bold ph-clock"></i><span>В отложку</span></button>
+        <button class="btn btn-ghost pending-icon-action" data-reject="${p.id}" title="Отклонить" aria-label="Отклонить"><i class="ph ph-trash"></i></button>
+        <button class="btn btn-ghost pending-icon-action" data-ban-post="${p.id}" title="Заблокировать автора" aria-label="Заблокировать автора"><i class="ph ph-prohibit"></i></button>
       </div>
       <div class="accordion-step" id="publish-step-${p.id}">
         <div class="step-title">Режим публикации:</div>
@@ -2525,6 +2611,7 @@ function initSubscribersChart() {
 let viewerPostId = null;
 let viewerCount = 1;
 let viewerIndex = 0;
+let viewerLoadToken = 0;
 
 function findPostAnywhere(postId) {
   return [...state.inbox, ...state.queue, ...state.log].find(p => p.id === postId);
@@ -2544,12 +2631,18 @@ async function openMediaViewerForPost(postId, startIndex = 0) {
 async function renderViewerSlide() {
   const post = findPostAnywhere(viewerPostId);
   if (!post) return;
-  const img = $('viewer-img');
+
+  // Токен для защиты от гонки: если пользователь быстро переключает слайды,
+  // устаревший промис не перезапишет уже показанное свежее фото.
+  const token = ++viewerLoadToken;
+
+  const img   = $('viewer-img');
   const video = $('viewer-video');
+  const loaderEl = $('viewer-loader');
   video.pause();
 
+  // — счётчик и кнопки навигации —
   $('viewer-counter').innerText = `${viewerIndex + 1} / ${viewerCount}`;
-
   const prevBtn = $('viewer-prev-btn');
   const nextBtn = $('viewer-next-btn');
   if (viewerCount <= 1) {
@@ -2562,42 +2655,78 @@ async function renderViewerSlide() {
     nextBtn.classList.toggle('disabled', viewerIndex === viewerCount - 1);
   }
 
+  // — лента миниатюр: создаём один раз, потом только меняем класс active —
   const thumbsWrap = $('viewer-thumbs-container');
-  const thumbs = $('viewer-thumbs');
+  const thumbs     = $('viewer-thumbs');
   if (viewerCount > 1) {
     thumbsWrap.style.display = 'block';
-    thumbs.innerHTML = Array.from({ length: viewerCount }, (_, i) => `
-      <div class="viewer-thumb-item ${i === viewerIndex ? 'active' : ''}" data-viewer-goto="${i}">
-        <img src="${BLANK_IMG}" data-viewer-thumb="${i}" alt="">
-      </div>`).join('');
+    const existingItems = thumbs.querySelectorAll('.viewer-thumb-item');
+    if (existingItems.length !== viewerCount) {
+      // Первое открытие или смена поста — строим с нуля
+      thumbs.innerHTML = Array.from({ length: viewerCount }, (_, i) => `
+        <div class="viewer-thumb-item" data-viewer-goto="${i}">
+          <img src="${BLANK_IMG}" data-viewer-thumb="${i}" alt="">
+        </div>`).join('');
+    }
+    // Обновляем active без пересоздания DOM
+    thumbs.querySelectorAll('.viewer-thumb-item').forEach((el, i) => {
+      el.classList.toggle('active', i === viewerIndex);
+    });
+    // Прокручиваем активную миниатюру в центр
+    try {
+      const active = thumbs.querySelector('.viewer-thumb-item.active');
+      if (active) active.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    } catch (_) {}
   } else {
     thumbsWrap.style.display = 'none';
   }
 
+  // — немедленно показываем спиннер, прячем старое фото —
+  img.classList.add('viewer-loading');
+  if (loaderEl) loaderEl.style.display = 'flex';
+
   try {
     const url = await loadAlbumItem(viewerPostId, viewerIndex);
+    if (token !== viewerLoadToken) return; // устарело — выходим
+
     const types = post.albumTypes || (post.hasMedia ? [post.mediaType] : []);
-    const kind = types[viewerIndex] || 'photo';
+    const kind  = types[viewerIndex] || 'photo';
     const isVideo = kind === 'video' || kind === 'video_note';
+
     if (isVideo) {
       img.style.display = 'none';
+      img.classList.remove('viewer-loading');
       video.style.display = 'block';
       video.src = url;
+      if (loaderEl) loaderEl.style.display = 'none';
     } else {
       video.src = '';
       video.style.display = 'none';
       img.style.display = 'block';
-      img.src = url;
+      loadImage(url).then(() => {
+        if (token !== viewerLoadToken) return;
+        img.src = url;
+        img.classList.remove('viewer-loading');
+        if (loaderEl) loaderEl.style.display = 'none';
+      }).catch(() => {
+        if (token !== viewerLoadToken) return;
+        img.classList.remove('viewer-loading');
+        if (loaderEl) loaderEl.style.display = 'none';
+        showToast('Не удалось загрузить медиа', true);
+      });
     }
   } catch (err) {
+    if (token !== viewerLoadToken) return;
+    img.classList.remove('viewer-loading');
+    if (loaderEl) loaderEl.style.display = 'none';
     showToast('Не удалось загрузить медиа', true);
   }
 
-  // миниатюры альбома подгружаем фоном
+  // — миниатюры подгружаем фоном —
   if (viewerCount > 1) {
     for (let i = 0; i < viewerCount; i++) {
       const el = thumbs.querySelector(`[data-viewer-thumb="${i}"]`);
-      if (el && el.src === BLANK_IMG) {
+      if (el && (el.src === BLANK_IMG || !el.src || el.src.endsWith('undefined'))) {
         loadAlbumItem(viewerPostId, i).then(u => { el.src = u; }).catch(() => {});
       }
     }
