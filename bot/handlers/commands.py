@@ -14,7 +14,7 @@ from aiogram.types import (
 from bot import database as db
 from bot.handlers.callbacks import admin_label, is_group_admin
 from bot.keyboards import main_keyboard, scheduled_keyboard
-from bot.publisher import PublishError, publish_post
+from bot.publisher import PublishError, notify_scheduled, publish_post
 from bot.timeparse import TimeParseError, format_when, parse_when
 
 logger = logging.getLogger(__name__)
@@ -231,6 +231,7 @@ async def cmd_reschedule(
         post["with_attribution"],
         admin_label(message.from_user),
     )
+    await notify_scheduled(bot, post, when, tz)
     if post["admin_chat_id"] and post["admin_message_id"]:
         try:
             await bot.edit_message_reply_markup(

@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import asyncpg
 from aiogram import Bot
@@ -20,6 +22,7 @@ from aiogram.types import (
 )
 
 from bot import database as db
+from bot.timeparse import format_when
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +95,27 @@ async def _notify_author(bot: Bot, post: asyncpg.Record, link: str) -> None:
         )
     except Exception:
         logger.debug("Не удалось уведомить автора %s о публикации", post["user_id"])
+
+
+async def notify_scheduled(
+    bot: Bot, post: asyncpg.Record, when: datetime, tz: ZoneInfo
+) -> None:
+    """Автору в ЛС: его пост отложен и выйдет в канале в такое-то время.
+    Свои посты админа не уведомляются, сбой доставки не мешает основному flow."""
+    if post["is_own"]:
+        return
+    try:
+        await bot.send_message(
+            post["user_id"],
+            f"🕓 Твой пост #{post['id']} отложен — выйдет в канале "
+            f"{format_when(when, tz)}.",
+        )
+    except Exception:
+        logger.debug(
+            "Не удалось уведомить автора %s об откладке поста #%s",
+            post["user_id"],
+            post["id"],
+        )
 
 
 async def publish_post(

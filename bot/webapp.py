@@ -24,7 +24,7 @@ from aiohttp import web
 
 from bot import database as db
 from bot.config import Config
-from bot.publisher import PublishError, publish_post
+from bot.publisher import PublishError, notify_scheduled, publish_post
 from bot.slots import (
     DAY_NAMES,
     OWN_TEXT_LIMIT,
@@ -478,6 +478,7 @@ async def handle_schedule(request: web.Request) -> web.Response:
     await db.mark_scheduled(
         post["id"], when.astimezone(timezone.utc), signed, author_of_admin(admin)
     )
+    await notify_scheduled(bot, post, when, tz)
     await set_scheduled_buttons(bot, post)
 
     return web.json_response(
@@ -597,6 +598,7 @@ async def handle_edit_post(request: web.Request) -> web.Response:
             post["with_attribution"],
             author_of_admin(admin),
         )
+        await notify_scheduled(bot, post, when, tz)
     return web.json_response({"ok": True, "message": "Изменения сохранены"})
 
 

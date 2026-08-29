@@ -23,7 +23,7 @@ from bot.keyboards import (
     schedule_slots_keyboard,
     scheduled_keyboard,
 )
-from bot.publisher import PublishError, publish_post
+from bot.publisher import PublishError, notify_scheduled, publish_post
 from bot.slots import build_days, resolve_slot
 from bot.timeparse import TimeParseError, format_when, parse_when
 
@@ -207,6 +207,7 @@ async def on_schedule_slot(
         with_attribution,
         admin_label(query.from_user),
     )
+    await notify_scheduled(bot, post, when, tz)
     await state.clear()
 
     if post["admin_chat_id"] and post["admin_message_id"]:
@@ -277,6 +278,8 @@ async def on_time_entered(
     )
 
     post = await db.get_post(post_id)
+    if post:
+        await notify_scheduled(bot, post, when, tz)
     if post and post["admin_chat_id"] and post["admin_message_id"]:
         try:
             await bot.edit_message_reply_markup(
