@@ -411,8 +411,6 @@ body {
   margin-bottom: 12px;
   word-break: break-word;
 }
-.post-text b, .post-text strong { color: #FFF; }
-.post-text a { color: var(--rose); text-decoration: none; }
 
 /* Media Gallery & Carousel Styles */
 .media-gallery {
@@ -451,166 +449,17 @@ body {
 }
 .media-badge i { font-size: 13px; color: var(--rose); }
 
-/* Multi-photo album carousel */
-.album-carousel-wrapper {
-  position: relative;
-  border-radius: 14px;
-  overflow: hidden;
-  margin-bottom: 12px;
-  background: var(--slate);
-  border: 1px solid var(--haze);
-  user-select: none;
-}
-.album-carousel {
-  display: flex;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scroll-behavior: smooth;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  -webkit-overflow-scrolling: touch;
-}
-.album-carousel::-webkit-scrollbar { display: none; }
-.carousel-slide {
-  flex: 0 0 100%;
-  width: 100%;
-  height: 220px;
-  scroll-snap-align: start;
-  position: relative;
-  cursor: pointer;
-  background: #14131D;
-}
-.carousel-slide img,
-.carousel-slide video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  transition: transform 0.25s ease;
-}
-.carousel-slide:hover img,
-.carousel-slide:hover video { transform: scale(1.015); }
-
-.carousel-arrow {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: rgba(16, 15, 23, 0.75);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: var(--bone);
-  display: grid;
-  place-items: center;
-  font-size: 16px;
-  cursor: pointer;
-  z-index: 10;
-  transition: all 0.18s ease;
-}
-.carousel-arrow:hover {
-  background: var(--rose);
-  color: #1A0A12;
-  border-color: var(--rose);
-}
-.carousel-arrow:active { transform: translateY(-50%) scale(0.92); }
-.carousel-arrow.prev { left: 8px; }
-.carousel-arrow.next { right: 8px; }
-
-.carousel-indicators {
-  position: absolute;
-  bottom: 8px;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 10px;
-  pointer-events: none;
-  z-index: 10;
-}
-.carousel-badge {
-  background: rgba(16, 15, 23, 0.85);
-  backdrop-filter: blur(8px);
-  padding: 4px 9px;
-  border-radius: 8px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--bone);
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  border: 1px solid rgba(255,255,255,0.08);
-}
-.carousel-badge i { font-size: 13px; color: var(--rose); }
-.carousel-dots {
-  display: flex;
-  gap: 5px;
-  background: rgba(16, 15, 23, 0.65);
-  backdrop-filter: blur(6px);
-  padding: 4px 8px;
-  border-radius: 12px;
-}
-.carousel-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.35);
-  transition: all 0.2s ease;
-}
-.carousel-dot.active {
-  background: var(--rose);
-  width: 14px;
-  border-radius: 4px;
-}
-.carousel-zoom-btn {
-  pointer-events: auto;
-  background: rgba(16, 15, 23, 0.85);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255,255,255,0.12);
-  color: var(--bone);
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
-  display: grid;
-  place-items: center;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.carousel-zoom-btn:hover { color: var(--rose); border-color: var(--rose); }
-
-/* Multi-photo album grid (alternative view) */
-.album-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  margin-bottom: 12px;
-}
-.album-thumb {
-  height: 84px;
-  border-radius: 10px;
-  overflow: hidden;
-  background: var(--slate);
-  border: 1px solid var(--haze);
-  cursor: pointer;
-  position: relative;
-}
-.album-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
 /* Card Buttons */
 .card-actions {
+  /* display задаётся конкретным модификатором (.pending-actions = grid,
+     остальные наследуют flex от .btn через обычный поток) */
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 10px;
 }
+/* .pending-actions переопределяет display:flex → grid, конфликта нет,
+   т.к. grid является более специфичным дочерним классом */
 .btn {
   flex: 1 1 auto;
   min-width: 0;
@@ -672,7 +521,7 @@ body {
   height: 38px;
   padding: 0;
 }
-@media (max-width: 390px) {
+@media (max-width: 400px) {
   .pending-actions {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
@@ -1274,31 +1123,13 @@ body {
   margin-bottom: 12px;
 }
 
-/* Quick Action Bar for Text formatting in Studio */
-.format-bar {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 10px;
-}
-.format-btn {
-  background: var(--slate);
-  border: 1px solid var(--haze);
-  color: var(--mist);
-  border-radius: 8px;
-  padding: 4px 10px;
-  font-size: 11.5px;
-  font-family: 'JetBrains Mono', monospace;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.format-btn:hover { border-color: var(--rose); color: var(--bone); }
-
 /* Кнопка «Люди» в шапке — как menu-btn в index.html */
 .menu-btn{margin-left:auto;display:grid;place-items:center;cursor:pointer;
   background:var(--slate);border:1px solid var(--haze);color:var(--bone);
   border-radius:12px;width:38px;height:38px;flex:none;
   transition:border-color .18s ease,color .18s ease}
 .menu-btn:hover{border-color:var(--rose);color:var(--rose)}
+.menu-btn.active{border-color:var(--rose);color:var(--rose);background:rgba(255,92,158,0.12)}
 .menu-btn:focus-visible{outline:2px solid var(--rose);outline-offset:2px}
 
 /* ── Архив (вкладка «Опубликовано») — как в исходном index.html ── */
@@ -1325,7 +1156,7 @@ body {
       <h1 class="brand-title">Панель <span>управления</span></h1>
     </div>
     <div class="header-actions">
-      <button class="menu-btn" onclick="switchTab('people')" title="Люди" aria-label="Люди">
+      <button class="menu-btn" id="tab-btn-people" onclick="switchTab('people')" title="Люди" aria-label="Люди">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
@@ -1531,15 +1362,15 @@ body {
   </div>
   <div style="background:var(--ink); border:1px solid var(--haze); border-radius:14px; padding:12px; display:flex; justify-content:space-around; text-align:center;">
     <div>
-      <b style="font-family:'JetBrains Mono'; color:var(--mint); font-size:16px;" id="subs-current">14 240</b>
+      <b style="font-family:'JetBrains Mono'; color:var(--mint); font-size:16px;" id="subs-current">—</b>
       <span style="display:block; font-size:10px; color:var(--mist); margin-top:2px;">Сейчас</span>
     </div>
     <div>
-      <b style="font-family:'JetBrains Mono'; color:var(--rose); font-size:16px;" id="subs-month">+184</b>
+      <b style="font-family:'JetBrains Mono'; color:var(--rose); font-size:16px;" id="subs-month">—</b>
       <span style="display:block; font-size:10px; color:var(--mist); margin-top:2px;">За 30 дней</span>
     </div>
     <div>
-      <b style="font-family:'JetBrains Mono'; color:var(--citrus); font-size:16px;" id="subs-today">+12</b>
+      <b style="font-family:'JetBrains Mono'; color:var(--citrus); font-size:16px;" id="subs-today">—</b>
       <span style="display:block; font-size:10px; color:var(--mist); margin-top:2px;">За сегодня</span>
     </div>
   </div>
@@ -1661,25 +1492,26 @@ async function loadMissingPhotos() {
     ...state.queue.filter(p => p.hasPhoto && !photoCache[p.id]).map(p => p.id),
     ...state.log.filter(p => p.hasPhoto && !photoCache[p.id]).map(p => p.id)
   ];
-  for (const id of ids) {
+  // Параллельно, а не последовательно — иначе 20 постов = 20 запросов в очередь
+  await Promise.all(ids.map(async id => {
     try {
       const res = await api('photo', { postId: id });
       photoCache[id] = res.dataUrl;
       document.querySelectorAll(`img[data-photo="${id}"]`).forEach(img => img.src = res.dataUrl);
     } catch (_) {}
-  }
+  }));
 }
 
 async function loadMissingMediaThumbs() {
-  const posts = [...state.inbox, ...state.queue, ...state.log];
-  for (const post of posts) {
-    if (!post.hasMediaThumb || mediaThumbCache[post.id]) continue;
+  const posts = [...state.inbox, ...state.queue, ...state.log]
+    .filter(p => p.hasMediaThumb && !mediaThumbCache[p.id]);
+  await Promise.all(posts.map(async post => {
     try {
       const res = await api('media-thumb', { postId: post.id });
       mediaThumbCache[post.id] = res.dataUrl;
       document.querySelectorAll(`img[data-media-thumb="${post.id}"]`).forEach(img => img.src = res.dataUrl);
     } catch (_) {}
-  }
+  }));
 }
 
 async function loadAlbumItem(postId, index) {
@@ -2076,7 +1908,7 @@ function scheduleAutoRefresh() {
   setInterval(() => {
     const el = document.activeElement;
     const typing = el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT');
-        const modalOpen = document.querySelector('.bottom-sheet.open, .accordion-step.open');
+    const modalOpen = document.querySelector('.bottom-sheet.open, .accordion-step.open');
     if (busy || typing || modalOpen || document.hidden) return;
     refresh();
   }, 4000);
@@ -2619,8 +2451,14 @@ function findPostAnywhere(postId) {
 
 async function openMediaViewerForPost(postId, startIndex = 0) {
   const post = findPostAnywhere(postId);
-  if (!post || !post.hasMedia) return;
+  if (!post || (!post.hasMedia && !post.hasPhoto)) return;
   haptic('medium');
+  // При смене поста сбрасываем ленту миниатюр, чтобы не показывались
+  // чужие миниатюры от предыдущего открытого альбома.
+  if (viewerPostId !== postId) {
+    const thumbs = $('viewer-thumbs');
+    if (thumbs) thumbs.innerHTML = '';
+  }
   viewerPostId = postId;
   viewerCount = post.albumCount || 1;
   viewerIndex = Math.max(0, Math.min(startIndex, viewerCount - 1));
@@ -2639,9 +2477,8 @@ async function renderViewerSlide() {
   const img   = $('viewer-img');
   const video = $('viewer-video');
   const loaderEl = $('viewer-loader');
-  video.pause();
-
-  // — счётчик и кнопки навигации —
+  // Баг Д: pause() на незапущенном видео кидает AbortError в некоторых браузерах
+  if (!video.paused) video.pause();
   $('viewer-counter').innerText = `${viewerIndex + 1} / ${viewerCount}`;
   const prevBtn = $('viewer-prev-btn');
   const nextBtn = $('viewer-next-btn');
@@ -2681,7 +2518,8 @@ async function renderViewerSlide() {
     thumbsWrap.style.display = 'none';
   }
 
-  // — немедленно показываем спиннер, прячем старое фото —
+  // — немедленно показываем спиннер, сбрасываем старое фото (Баг Б) —
+  img.removeAttribute('src');  // старая картинка не мелькает под спиннером
   img.classList.add('viewer-loading');
   if (loaderEl) loaderEl.style.display = 'flex';
 
@@ -2726,7 +2564,7 @@ async function renderViewerSlide() {
   if (viewerCount > 1) {
     for (let i = 0; i < viewerCount; i++) {
       const el = thumbs.querySelector(`[data-viewer-thumb="${i}"]`);
-      if (el && (el.src === BLANK_IMG || !el.src || el.src.endsWith('undefined'))) {
+      if (el && (el.getAttribute('src') === BLANK_IMG || !el.getAttribute('src') || el.src.endsWith('undefined'))) {
         loadAlbumItem(viewerPostId, i).then(u => { el.src = u; }).catch(() => {});
       }
     }
@@ -2758,7 +2596,11 @@ async function viewerGoTo(i) {
 }
 
 function closeMediaViewer() {
-  $('viewer-video').pause();
+  // Баг В: инкрементируем токен — любой висящий промис loadAlbumItem
+  // увидит несоответствие и не запишет src в уже закрытый просмотрщик.
+  viewerLoadToken++;
+  const video = $('viewer-video');
+  if (!video.paused) video.pause();
   $('media-viewer').classList.remove('open');
   viewerPostId = null;
 }
@@ -2911,14 +2753,14 @@ document.addEventListener('click', (e) => {
   if (t.dataset.removeEditExisting !== undefined) {
     editRemoved.add(+t.dataset.removeEditExisting);
     const post = state.queue.find(p => p.id === editingPostId);
-    if (post) renderEditMediaPreviews(post);
+    if (post) renderEditMediaPreviews(post).catch(() => {});
     return;
   }
 
   if (t.dataset.removeEditNew !== undefined) {
     editNewFiles.splice(+t.dataset.removeEditNew, 1);
     const post = state.queue.find(p => p.id === editingPostId);
-    if (post) renderEditMediaPreviews(post);
+    if (post) renderEditMediaPreviews(post).catch(() => {});
     return;
   }
 
