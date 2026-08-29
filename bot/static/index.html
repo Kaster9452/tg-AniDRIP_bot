@@ -1685,18 +1685,37 @@ function latGridHtml(id) {
     const past = slot.state === 'past';
     const taken = slot.state === 'taken';
     const chosen = latSel[id]?.time === slot.time;
-    const status = past ? 'Прошёл' : chosen ? 'Выбран' : taken ? `Занят #${slot.postId}` : 'Свободно';
+    const baseStatus = past ? 'Прошёл' : taken ? `Занят #${slot.postId}` : 'Свободно';
+    const status = chosen ? 'Выбран' : baseStatus;
     const cls = taken ? 'taken' : chosen ? 'selected' : past ? 'past' : 'free';
     const tag = taken
       ? (slot.postOwn === false ? '<span class="slot-tag tag-predlozhka">предложка</span>' : '<span class="slot-tag tag-own">свой пост</span>')
       : '';
     return `
-      <div class="slot-cell ${cls}" data-latslot="${id}:${slot.time}">
+      <div class="slot-cell ${cls}" data-latslot="${id}:${slot.time}" data-base="${baseStatus}">
         <span class="slot-time">${slot.time}</span>
         <span class="slot-status">${status}</span>
         ${tag}
       </div>`;
   }).join('');
+}
+
+/* При выборе слота не перерисовываем всю сетку (иначе у всех индикаторов-
+   светофоров заново стартует анимация pulse-beacon), а только переключаем
+   класс selected у существующих элементов. */
+function applyLatSlotPick(id) {
+  const grid = document.querySelector(`[data-latgrid="${id}"]`);
+  if (!grid) return;
+  const selTime = latSel[id]?.time;
+  grid.querySelectorAll('.slot-cell[data-latslot]').forEach(el => {
+    if (el.classList.contains('taken') || el.classList.contains('past')) return;
+    const i = el.dataset.latslot.indexOf(':');
+    const time = el.dataset.latslot.slice(i + 1);
+    const chosen = selTime === time;
+    el.classList.toggle('selected', chosen);
+    const st = el.querySelector('.slot-status');
+    if (st) st.textContent = chosen ? 'Выбран' : (el.dataset.base || 'Свободно');
+  });
 }
 
 function renderLat(id) {
@@ -2161,18 +2180,32 @@ function renderOwnGrid() {
     const past = slot.state === 'past';
     const taken = slot.state === 'taken';
     const chosen = ownSlot === slot.time;
-    const status = past ? 'Прошёл' : chosen ? 'Выбран' : taken ? `Занят #${slot.postId}` : 'Свободно';
+    const baseStatus = past ? 'Уже прошло' : taken ? `Занят #${slot.postId}` : 'Свободно';
+    const status = chosen ? 'Выбрано' : baseStatus;
     const cls = taken ? 'taken' : chosen ? 'selected' : past ? 'past' : 'free';
     const tag = taken
       ? (slot.postOwn === false ? '<span class="slot-tag tag-predlozhka">предложка</span>' : '<span class="slot-tag tag-own">свой пост</span>')
       : '';
     return `
-      <div class="slot-cell ${cls}" data-ownslot="${slot.time}">
+      <div class="slot-cell ${cls}" data-ownslot="${slot.time}" data-base="${baseStatus}">
         <span class="slot-time">${slot.time}</span>
         <span class="slot-status">${status}</span>
         ${tag}
       </div>`;
   }).join('');
+}
+
+/* Плавный выбор слота в «Своём посте»: только класс, без перерисовки сетки. */
+function applyOwnSlotPick() {
+  const grid = $('own-slots-grid');
+  if (!grid) return;
+  grid.querySelectorAll('.slot-cell[data-ownslot]').forEach(el => {
+    if (el.classList.contains('taken') || el.classList.contains('past')) return;
+    const chosen = ownSlot === el.dataset.ownslot;
+    el.classList.toggle('selected', chosen);
+    const st = el.querySelector('.slot-status');
+    if (st) st.textContent = chosen ? 'Выбрано' : (el.dataset.base || 'Свободно');
+  });
 }
 
 function renderOwnMediaPreviews() {
@@ -2311,14 +2344,28 @@ function renderEditGrid() {
     const past = slot.state === 'past' && !isThisPost;
     const taken = slot.state === 'taken' && !isThisPost;
     const chosen = editSlot === slot.time;
-    const status = chosen ? 'Выбрано' : isThisPost ? 'Сейчас' : taken ? `Занят #${slot.postId}` : past ? 'Прошёл' : 'Свободен';
+    const baseStatus = taken ? `Занят #${slot.postId}` : isThisPost ? 'Сейчас' : past ? 'Прошёл' : 'Свободен';
+    const status = chosen ? 'Выбрано' : baseStatus;
     const cls = taken ? 'taken' : chosen ? 'selected' : past ? 'past' : 'free';
     return `
-      <div class="slot-cell ${cls}" data-editslot="${slot.time}">
+      <div class="slot-cell ${cls}" data-editslot="${slot.time}" data-base="${baseStatus}">
         <span class="slot-time">${slot.time}</span>
         <span class="slot-status">${status}</span>
       </div>`;
   }).join('');
+}
+
+/* Плавный выбор слота при редактировании: только класс, без перерисовки. */
+function applyEditSlotPick() {
+  const grid = $('edit-slots-grid');
+  if (!grid) return;
+  grid.querySelectorAll('.slot-cell[data-editslot]').forEach(el => {
+    if (el.classList.contains('taken') || el.classList.contains('past')) return;
+    const chosen = editSlot === el.dataset.editslot;
+    el.classList.toggle('selected', chosen);
+    const st = el.querySelector('.slot-status');
+    if (st) st.textContent = chosen ? 'Выбрано' : (el.dataset.base || 'Свободен');
+  });
 }
 
 async function renderEditMediaPreviews(post) {
@@ -2622,7 +2669,7 @@ document.addEventListener('click', (e) => {
     }
     const cur = latSel[id] || {};
     latSel[id] = cur.time === time ? { day: cur.day || 0 } : { day: cur.day || 0, time };
-    renderLat(+id);
+    applyLatSlotPick(+id);
     return;
   }
 
@@ -2697,7 +2744,7 @@ document.addEventListener('click', (e) => {
     }
     ownSlot = t.dataset.ownslot === ownSlot ? null : t.dataset.ownslot;
     if (ownSlot) $('own-when-custom').value = '';
-    renderOwnGrid();
+    applyOwnSlotPick();
     return;
   }
 
@@ -2728,7 +2775,7 @@ document.addEventListener('click', (e) => {
     }
     editSlot = t.dataset.editslot === editSlot ? null : t.dataset.editslot;
     if (editSlot) $('edit-when-custom').value = '';
-    renderEditGrid();
+    applyEditSlotPick();
     return;
   }
 
