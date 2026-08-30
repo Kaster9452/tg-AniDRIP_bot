@@ -11,6 +11,41 @@
 Плюс сохранена базовая функция обратной связи: админ отвечает свайпом
 (Reply) на сообщение в группе, и ответ уходит автору в личку.
 
+
+## AniDrip Pro — презентация
+
+<p align="center">
+  <img src="docs/slide_1.png" alt="AniDrip Pro — управляйте контентом как профессионал">
+</p>
+
+<p align="center">
+  <img src="docs/slide_2.png" alt="Единая панель управления">
+</p>
+
+<p align="center">
+  <img src="docs/slide_3.png" alt="Интеллектуальное расписание">
+</p>
+
+<p align="center">
+  <img src="docs/slide_4.png" alt="Продвинутый редактор">
+</p>
+
+<p align="center">
+  <img src="docs/slide_5.png" alt="Управление аудиторией">
+</p>
+
+<p align="center">
+  <img src="docs/slide_6.png" alt="Оптимизация и масштабы">
+</p>
+
+<p align="center">
+  <img src="docs/slide_7.png" alt="Прозрачная аналитика">
+</p>
+
+<p align="center">
+  <img src="docs/slide_8.png" alt="Готовы к запуску? GitHub tg-AniDRIP_bot">
+</p>
+
 ## Как работают кнопки
 
 Под каждой предложкой в группе висят две кнопки. Нажимать их могут только
@@ -105,17 +140,6 @@ Telegram: три вкладки — новые предложки, очеред�
 писал боту: по каждому видно, сколько прислал, сколько опубликовано и
 когда писал в последний раз. Оттуда можно опубликовать, отложить, перенести и отклонить
 пост, не переключаясь в группу.
-
-<table>
-  <tr>
-    <th align="center">Предложка</th>
-    <th align="center">Люди</th>
-  </tr>
-  <tr>
-    <td align="center"><img src="docs/panel_pending.png" width="380"></td>
-    <td align="center"><img src="docs/panel_people.png" width="380"></td>
-  </tr>
-</table>
 
 В шапке панели есть кнопка обновления — она запускает «жёсткую» перезагрузку:
 закрывает все открытые окна и аккордеоны, сбрасывает кэши картинок, поиск и
